@@ -194,20 +194,11 @@ make docker-build     # Build Docker image
 ## 📊 Monitoring (Roadmap)
 
 **MVP (current version):**
-- None
+- [x\] Structured logging (log/slog)
+- [x\] Health check endpoint `/health`
+- [x\] Middleware for logging latency
 
 **Planned:**
-- [ ] Structured logging (log/slog)
-- [ ] Health check endpoint `/health`
-- [ ] Middleware for logging latency
 - [ ] Prometheus metrics
 - [ ] Grafana dashboards
 - [ ] Distributed tracing (OpenTelemetry)
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
