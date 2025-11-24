@@ -18,7 +18,7 @@ func NewMentorService(mentorRepo domain.MentorRepository) *MentorService {
 }
 
 // CreateMentor creates a new mentor
-func (s *MentorService) CreateMentor(ctx context.Context, name, jobTitle, experience, email, telegram, avatar string) (*domain.Mentor, error) {
+func (s *MentorService) CreateMentor(ctx context.Context, name, jobTitle, experience, email, telegram string) (*domain.Mentor, error) {
 	// Validate input
 	if name == "" || jobTitle == "" || email == "" {
 		return nil, fmt.Errorf("%w: name, jobTitle, and email are required", domain.ErrInvalidInput)
