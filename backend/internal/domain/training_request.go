@@ -13,8 +13,8 @@ const (
 
 // TrainingRequest represents an employee's request to learn a topic
 type TrainingRequest struct {
-	ID          uint64        `json:"id"`
-	UserID      uint64        `json:"userId"`
+	ID          string        `json:"id"`
+	UserID      string        `json:"userId"`
 	Topic       string        `json:"topic"`
 	Description string        `json:"description"`
 	Status      RequestStatus `json:"status"`

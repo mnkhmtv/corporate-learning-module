@@ -13,7 +13,7 @@ const (
 
 // User represents a system user (employee or administrator)
 type User struct {
-	ID           uint64    `json:"id"`
+	ID           string    `json:"id"`
 	Name         string    `json:"name"`
 	Email        string    `json:"email"`
 	PasswordHash string    `json:"-"` // Never expose in JSON

@@ -4,7 +4,7 @@ import "time"
 
 // Mentor represents a training mentor in the system
 type Mentor struct {
-	ID         uint64    `json:"id"`
+	ID         string    `json:"id"`
 	Name       string    `json:"name"`
 	JobTitle   string    `json:"jobTitle"`
 	Experience *string   `json:"experience,omitempty"`

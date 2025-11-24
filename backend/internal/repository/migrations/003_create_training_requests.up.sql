@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS training_requests (
-    id BIGSERIAL PRIMARY KEY,
-    userId BIGSERIAL NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    userId UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     topic VARCHAR(500) NOT NULL,
     description TEXT NOT NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
