@@ -37,8 +37,7 @@ func (r *LearningRepository) Create(ctx context.Context, learning *domain.Learni
 	err = r.pool.QueryRow(
 		ctx, query,
 		learning.RequestID, learning.UserID, learning.MentorID,
-		learning.MentorName, learning.MentorEmail, learning.Status,
-		planJSON, learning.Notes,
+		learning.Status, planJSON, learning.Notes,
 	).Scan(&learning.ID, &learning.CreatedAt, &learning.UpdatedAt)
 
 	if err != nil {
@@ -63,8 +62,7 @@ func (r *LearningRepository) GetByID(ctx context.Context, id string) (*domain.Le
 
 	err := r.pool.QueryRow(ctx, query, id).Scan(
 		&learning.ID, &learning.RequestID, &learning.UserID,
-		&learning.MentorID, &learning.MentorName, &learning.MentorEmail,
-		&learning.Status, &planJSON, &learning.Notes,
+		&learning.MentorID, &learning.Status, &planJSON, &learning.Notes,
 		&learning.FeedbackRating, &learning.FeedbackComment,
 		&learning.CreatedAt, &learning.UpdatedAt, &learning.CompletedAt,
 	)
@@ -185,8 +183,7 @@ func (r *LearningRepository) scanLearningProcesses(rows pgx.Rows) ([]*domain.Lea
 
 		err := rows.Scan(
 			&learning.ID, &learning.RequestID, &learning.UserID,
-			&learning.MentorID, &learning.MentorName, &learning.MentorEmail,
-			&learning.Status, &planJSON, &learning.Notes,
+			&learning.MentorID, &learning.Status, &planJSON, &learning.Notes,
 			&learning.FeedbackRating, &learning.FeedbackComment,
 			&learning.CreatedAt, &learning.UpdatedAt, &learning.CompletedAt,
 		)

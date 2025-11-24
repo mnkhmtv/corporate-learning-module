@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS mentors (
-    id BIGSERIAL PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
     jobTitle VARCHAR(255) NOT NULL,
     experience TEXT,

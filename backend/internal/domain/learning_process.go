@@ -12,10 +12,10 @@ const (
 
 // LearningProcess represents an active or completed learning session
 type LearningProcess struct {
-	ID              uint64             `json:"id"`
-	RequestID       uint64             `json:"requestId"`
-	UserID          uint64             `json:"userId"`
-	MentorID        uint64             `json:"mentorId"`
+	ID              string             `json:"id"`
+	RequestID       string             `json:"requestId"`
+	UserID          string             `json:"userId"`
+	MentorID        string             `json:"mentorId"`
 	Status          LearningStatus     `json:"status"`
 	Plan            []LearningPlanItem `json:"plan"`
 	Notes           *string            `json:"notes,omitempty"`
@@ -46,24 +46,8 @@ func (lp *LearningProcess) AddPlanItem(item LearningPlanItem) error {
 	return nil
 }
 
-// GetNextPlanItemID returns the next available ID for a new plan item
-func (lp *LearningProcess) GetNextPlanItemID() (uint8, error) {
-	if len(lp.Plan) >= 255 {
-		return 0, ErrPlanLimitReached
-	}
-
-	maxID := uint8(0)
-	for _, item := range lp.Plan {
-		if item.ID > maxID {
-			maxID = item.ID
-		}
-	}
-
-	return maxID + 1, nil
-}
-
 // UpdatePlanItem updates an existing plan item by ID
-func (lp *LearningProcess) UpdatePlanItem(id uint8, text string, completed bool) error {
+func (lp *LearningProcess) UpdatePlanItem(id string, text string, completed bool) error {
 	for i := range lp.Plan {
 		if lp.Plan[i].ID == id {
 			if text != "" {
@@ -78,7 +62,7 @@ func (lp *LearningProcess) UpdatePlanItem(id uint8, text string, completed bool)
 }
 
 // TogglePlanItem toggles completion status of a plan item
-func (lp *LearningProcess) TogglePlanItem(id uint8) error {
+func (lp *LearningProcess) TogglePlanItem(id string) error {
 	for i := range lp.Plan {
 		if lp.Plan[i].ID == id {
 			lp.Plan[i].Toggle()
@@ -90,7 +74,7 @@ func (lp *LearningProcess) TogglePlanItem(id uint8) error {
 }
 
 // RemovePlanItem removes an item from the plan by ID
-func (lp *LearningProcess) RemovePlanItem(id uint8) error {
+func (lp *LearningProcess) RemovePlanItem(id string) error {
 	for i, item := range lp.Plan {
 		if item.ID == id {
 			lp.Plan = append(lp.Plan[:i], lp.Plan[i+1:]...)
@@ -102,7 +86,7 @@ func (lp *LearningProcess) RemovePlanItem(id uint8) error {
 }
 
 // GetPlanItem returns a specific plan item by ID
-func (lp *LearningProcess) GetPlanItem(id uint8) (*LearningPlanItem, error) {
+func (lp *LearningProcess) GetPlanItem(id string) (*LearningPlanItem, error) {
 	for i := range lp.Plan {
 		if lp.Plan[i].ID == id {
 			return &lp.Plan[i], nil

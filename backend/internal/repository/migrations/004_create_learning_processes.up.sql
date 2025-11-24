@@ -1,8 +1,8 @@
 CREATE TABLE IF NOT EXISTS learning_processes (
-    id BIGSERIAL PRIMARY KEY,
-    requestId BIGSERIAL NOT NULL REFERENCES training_requests(id) ON DELETE CASCADE,
-    userId BIGSERIAL NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    mentorId BIGSERIAL NOT NULL REFERENCES mentors(id) ON DELETE RESTRICT,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    requestId UUID NOT NULL REFERENCES training_requests(id) ON DELETE CASCADE,
+    userId UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    mentorId UUID NOT NULL REFERENCES mentors(id) ON DELETE RESTRICT,
     status VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'completed')),
     plan JSONB DEFAULT '[]'::jsonb,
     notes TEXT,

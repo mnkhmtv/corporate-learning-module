@@ -30,7 +30,7 @@ func (r *MentorRepository) Create(ctx context.Context, mentor *domain.Mentor) er
 	err := r.pool.QueryRow(
 		ctx, query,
 		mentor.Name, mentor.JobTitle, mentor.Experience, mentor.Workload,
-		mentor.Email, mentor.Telegram, mentor.Avatar,
+		mentor.Email, mentor.Telegram,
 	).Scan(&mentor.ID, &mentor.CreatedAt, &mentor.UpdatedAt)
 
 	if err != nil {
@@ -51,7 +51,7 @@ func (r *MentorRepository) GetByID(ctx context.Context, id string) (*domain.Ment
 	var mentor domain.Mentor
 	err := r.pool.QueryRow(ctx, query, id).Scan(
 		&mentor.ID, &mentor.Name, &mentor.JobTitle, &mentor.Experience,
-		&mentor.Workload, &mentor.Email, &mentor.Telegram, &mentor.Avatar,
+		&mentor.Workload, &mentor.Email, &mentor.Telegram,
 		&mentor.CreatedAt, &mentor.UpdatedAt,
 	)
 
@@ -97,7 +97,7 @@ func (r *MentorRepository) GetAll(ctx context.Context, maxWorkload *int) ([]*dom
 		var mentor domain.Mentor
 		err := rows.Scan(
 			&mentor.ID, &mentor.Name, &mentor.JobTitle, &mentor.Experience,
-			&mentor.Workload, &mentor.Email, &mentor.Telegram, &mentor.Avatar,
+			&mentor.Workload, &mentor.Email, &mentor.Telegram,
 			&mentor.CreatedAt, &mentor.UpdatedAt,
 		)
 		if err != nil {

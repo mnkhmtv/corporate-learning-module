@@ -26,7 +26,6 @@ var (
 	ErrLearningNotActive     = errors.New("learning process is not active")
 	ErrInvalidRating         = errors.New("rating must be between 1 and 5")
 	ErrPlanItemNotFound      = errors.New("plan item not found")
-	ErrPlanLimitReached      = errors.New("plan cannot have more than 255 items")
 
 	// Validation errors
 	ErrInvalidInput    = errors.New("invalid input data")
