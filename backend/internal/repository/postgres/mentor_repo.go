@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/mnkhmtv/corporate-learning-module/backend/internal/domain"
 
@@ -23,7 +24,7 @@ func NewMentorRepository(pool *pgxpool.Pool) *MentorRepository {
 func (r *MentorRepository) Create(ctx context.Context, mentor *domain.Mentor) error {
 	query := `
 		INSERT INTO mentors (name, jobTitle, experience, workload, email, telegram)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id, createdAt, updatedAt
 	`
 
@@ -43,7 +44,7 @@ func (r *MentorRepository) Create(ctx context.Context, mentor *domain.Mentor) er
 // GetByID retrieves a mentor by ID
 func (r *MentorRepository) GetByID(ctx context.Context, id string) (*domain.Mentor, error) {
 	query := `
-		SELECT id, name, jobTitle, experience, workload, email, telegram, avatar, createdAt, updatedAt
+		SELECT id, name, jobTitle, experience, workload, email, telegram, createdAt, updatedAt
 		FROM mentors
 		WHERE id = $1
 	`
@@ -72,7 +73,7 @@ func (r *MentorRepository) GetAll(ctx context.Context, maxWorkload *int) ([]*dom
 
 	if maxWorkload != nil {
 		query = `
-			SELECT id, name, jobTitle, experience, workload, email, telegram, avatar, createdAt, updatedAt
+			SELECT id, name, jobTitle, experience, workload, email, telegram, createdAt, updatedAt
 			FROM mentors
 			WHERE workload <= $1
 			ORDER BY workload ASC, name ASC
@@ -80,7 +81,7 @@ func (r *MentorRepository) GetAll(ctx context.Context, maxWorkload *int) ([]*dom
 		args = append(args, *maxWorkload)
 	} else {
 		query = `
-			SELECT id, name, jobTitle, experience, workload, email, telegram, avatar, createdAt, updatedAt
+			SELECT id, name, jobTitle, experience, workload, email, telegram, createdAt, updatedAt
 			FROM mentors
 			ORDER BY workload ASC, name ASC
 		`
@@ -122,7 +123,7 @@ func (r *MentorRepository) UpdateWorkload(ctx context.Context, id string, worklo
 		RETURNING updatedAt
 	`
 
-	var updatedAt string
+	var updatedAt time.Time
 	err := r.pool.QueryRow(ctx, query, id, workload).Scan(&updatedAt)
 
 	if err != nil {

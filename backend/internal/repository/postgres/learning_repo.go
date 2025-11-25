@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/mnkhmtv/corporate-learning-module/backend/internal/domain"
 
@@ -30,7 +31,7 @@ func (r *LearningRepository) Create(ctx context.Context, learning *domain.Learni
 	query := `
 		INSERT INTO learning_processes 
 		(requestId, userId, mentorId, status, plan, notes)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id, createdAt, updatedAt
 	`
 
@@ -88,7 +89,7 @@ func (r *LearningRepository) GetByUserID(ctx context.Context, userID string) ([]
 		       status, plan, notes, feedbackRating, feedbackComment,
 		       createdAt, updatedAt, completedAt
 		FROM learning_processes
-		WHERE user_id = $1
+		WHERE userId = $1
 		ORDER BY createdAt DESC
 	`
 
@@ -108,7 +109,7 @@ func (r *LearningRepository) GetByMentorID(ctx context.Context, mentorID string)
 		       status, plan, notes, feedbackRating, feedbackComment,
 		       createdAt, updatedAt, completedAt
 		FROM learning_processes
-		WHERE mentor_id = $1
+		WHERE mentorId = $1
 		ORDER BY createdAt DESC
 	`
 
@@ -135,7 +136,7 @@ func (r *LearningRepository) UpdatePlan(ctx context.Context, id string, plan []d
 		RETURNING updatedAt
 	`
 
-	var updatedAt string
+	var updatedAt time.Time
 	err = r.pool.QueryRow(ctx, query, id, planJSON).Scan(&updatedAt)
 
 	if err != nil {
@@ -160,7 +161,7 @@ func (r *LearningRepository) Complete(ctx context.Context, id string, rating int
 		RETURNING updatedAt
 	`
 
-	var updatedAt string
+	var updatedAt time.Time
 	err := r.pool.QueryRow(ctx, query, id, rating, comment).Scan(&updatedAt)
 
 	if err != nil {

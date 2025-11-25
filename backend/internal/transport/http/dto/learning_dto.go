@@ -11,6 +11,18 @@ type UpdatePlanItemDTO struct {
 	Completed bool   `json:"completed"`
 }
 
+// UpdatePlanDTO represents updating the entire learning plan
+type UpdatePlanDTO struct {
+	Plan []PlanItemDTO `json:"plan" binding:"required"`
+}
+
+// PlanItemDTO represents a plan item in request/response
+type PlanItemDTO struct {
+	ID        string `json:"id" binding:"required"`
+	Text      string `json:"text" binding:"required"`
+	Completed bool   `json:"completed"`
+}
+
 // CompleteLearningDTO represents completing learning with feedback
 type CompleteLearningDTO struct {
 	Rating  int    `json:"rating" binding:"required,min=1,max=5"`

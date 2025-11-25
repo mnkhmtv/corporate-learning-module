@@ -80,10 +80,13 @@ func (h *Handler) InitRoutes(router *gin.Engine, logger *slog.Logger, jwtSecret 
 				learnings.GET("", h.learningHandler.GetMyLearnings)
 				learnings.GET("/:id", h.learningHandler.GetLearningByID)
 				learnings.GET("/:id/progress", h.learningHandler.GetProgress)
+
 				learnings.POST("/:id/plan", h.learningHandler.AddPlanItem)
+				learnings.PUT("/:id/plan", h.learningHandler.UpdatePlan)
 				learnings.PUT("/:id/plan/:itemId", h.learningHandler.UpdatePlanItem)
 				learnings.PATCH("/:id/plan/:itemId/toggle", h.learningHandler.TogglePlanItem)
 				learnings.DELETE("/:id/plan/:itemId", h.learningHandler.RemovePlanItem)
+
 				learnings.POST("/:id/complete", h.learningHandler.CompleteLearning)
 			}
 

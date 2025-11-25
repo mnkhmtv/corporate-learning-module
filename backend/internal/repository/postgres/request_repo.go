@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/mnkhmtv/corporate-learning-module/backend/internal/domain"
 
@@ -66,9 +67,9 @@ func (r *RequestRepository) GetByID(ctx context.Context, id string) (*domain.Tra
 // GetByUserID retrieves all requests for a specific user
 func (r *RequestRepository) GetByUserID(ctx context.Context, userID string) ([]*domain.TrainingRequest, error) {
 	query := `
-		SELECT id, user_id, topic, description, status, createdAt, updatedAt
+		SELECT id, userId, topic, description, status, createdAt, updatedAt
 		FROM training_requests
-		WHERE user_id = $1
+		WHERE userId = $1
 		ORDER BY createdAt DESC
 	`
 
@@ -120,7 +121,7 @@ func (r *RequestRepository) UpdateStatus(ctx context.Context, id, status string)
 		RETURNING updatedAt
 	`
 
-	var updatedAt string
+	var updatedAt time.Time
 	err := r.pool.QueryRow(ctx, query, id, status).Scan(&updatedAt)
 
 	if err != nil {

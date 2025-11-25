@@ -14,7 +14,7 @@ var (
 
 // Claims represents the JWT claims structure
 type Claims struct {
-	UserID string `json:"user_id"`
+	UserID string `json:"userId"`
 	Role   string `json:"role"`
 	jwt.RegisteredClaims
 }

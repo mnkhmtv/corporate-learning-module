@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/mnkhmtv/corporate-learning-module/backend/internal/domain"
 	"github.com/mnkhmtv/corporate-learning-module/backend/internal/service"
 	"github.com/mnkhmtv/corporate-learning-module/backend/internal/transport/http/dto"
 	"github.com/mnkhmtv/corporate-learning-module/backend/internal/transport/http/middleware"
@@ -56,6 +57,35 @@ func (h *LearningHandler) AddPlanItem(c *gin.Context) {
 	}
 
 	learning, err := h.learningService.AddPlanItem(c.Request.Context(), learningID, req.Text)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, learning)
+}
+
+// UpdatePlan handles PUT /api/learnings/:id/plan (обновление всего плана)
+func (h *LearningHandler) UpdatePlan(c *gin.Context) {
+	learningID := c.Param("id")
+
+	var req dto.UpdatePlanDTO
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Конвертируем DTO в domain модель
+	planItems := make([]domain.LearningPlanItem, len(req.Plan))
+	for i, item := range req.Plan {
+		planItems[i] = domain.LearningPlanItem{
+			ID:        item.ID,
+			Text:      item.Text,
+			Completed: item.Completed,
+		}
+	}
+
+	learning, err := h.learningService.UpdatePlan(c.Request.Context(), learningID, planItems)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

@@ -193,3 +193,30 @@ func (s *LearningService) GetLearningProgress(ctx context.Context, learningID st
 
 	return learning.GetProgress(), nil
 }
+
+// UpdatePlan updates the entire learning plan
+func (s *LearningService) UpdatePlan(ctx context.Context, learningID string, planItems []domain.LearningPlanItem) (*domain.LearningProcess, error) {
+	learning, err := s.learningRepo.GetByID(ctx, learningID)
+	if err != nil {
+		return nil, err
+	}
+
+	if !learning.IsActive() {
+		return nil, domain.ErrLearningNotActive
+	}
+
+	// Validate plan elements
+	for _, item := range planItems {
+		if err := item.Validate(); err != nil {
+			return nil, err
+		}
+	}
+
+	// Update plan
+	if err := s.learningRepo.UpdatePlan(ctx, learning.ID, planItems); err != nil {
+		return nil, fmt.Errorf("failed to update plan: %w", err)
+	}
+
+	// Receive updated learning process
+	return s.learningRepo.GetByID(ctx, learningID)
+}

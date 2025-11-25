@@ -58,7 +58,7 @@ func RequireAdmin() gin.HandlerFunc {
 	}
 }
 
-// GetUserID extracts user_id from context
+// GetUserID extracts userId from context
 func GetUserID(c *gin.Context) (string, bool) {
 	userID, exists := c.Get("userId")
 	if !exists {
