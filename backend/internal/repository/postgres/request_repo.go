@@ -69,7 +69,7 @@ func (r *RequestRepository) GetByUserID(ctx context.Context, userID string) ([]*
 		SELECT id, user_id, topic, description, status, createdAt, updatedAt
 		FROM training_requests
 		WHERE user_id = $1
-		ORDER BY created_at DESC
+		ORDER BY createdAt DESC
 	`
 
 	rows, err := r.pool.Query(ctx, query, userID)
@@ -91,14 +91,14 @@ func (r *RequestRepository) GetAll(ctx context.Context, status *string) ([]*doma
 			SELECT id, userId, topic, description, status, createdAt, updatedAt
 			FROM training_requests
 			WHERE status = $1
-			ORDER BY created_at DESC
+			ORDER BY createdAt DESC
 		`
 		args = append(args, *status)
 	} else {
 		query = `
 			SELECT id, userId, topic, description, status, createdAt, updatedAt
 			FROM training_requests
-			ORDER BY created_at DESC
+			ORDER BY createdAt DESC
 		`
 	}
 

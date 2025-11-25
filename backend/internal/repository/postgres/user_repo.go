@@ -96,7 +96,7 @@ func (r *UserRepository) Update(ctx context.Context, user *domain.User) error {
 		UPDATE users
 		SET name = $2, department = $3, jobTitle = $4, telegram = $5
 		WHERE id = $1
-		RETURNING updated_at
+		RETURNING updatedAt
 	`
 
 	err := r.pool.QueryRow(

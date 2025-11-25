@@ -72,7 +72,7 @@ func (r *MentorRepository) GetAll(ctx context.Context, maxWorkload *int) ([]*dom
 
 	if maxWorkload != nil {
 		query = `
-			SELECT id, name, job_title, experience, workload, email, telegram, avatar, createdAt, updatedAt
+			SELECT id, name, jobTitle, experience, workload, email, telegram, avatar, createdAt, updatedAt
 			FROM mentors
 			WHERE workload <= $1
 			ORDER BY workload ASC, name ASC
@@ -80,7 +80,7 @@ func (r *MentorRepository) GetAll(ctx context.Context, maxWorkload *int) ([]*dom
 		args = append(args, *maxWorkload)
 	} else {
 		query = `
-			SELECT id, name, job_title, experience, workload, email, telegram, avatar, createdAt, updatedAt
+			SELECT id, name, jobTitle, experience, workload, email, telegram, avatar, createdAt, updatedAt
 			FROM mentors
 			ORDER BY workload ASC, name ASC
 		`

@@ -89,7 +89,7 @@ func (r *LearningRepository) GetByUserID(ctx context.Context, userID string) ([]
 		       createdAt, updatedAt, completedAt
 		FROM learning_processes
 		WHERE user_id = $1
-		ORDER BY created_at DESC
+		ORDER BY createdAt DESC
 	`
 
 	rows, err := r.pool.Query(ctx, query, userID)
@@ -109,7 +109,7 @@ func (r *LearningRepository) GetByMentorID(ctx context.Context, mentorID string)
 		       createdAt, updatedAt, completedAt
 		FROM learning_processes
 		WHERE mentor_id = $1
-		ORDER BY created_at DESC
+		ORDER BY createdAt DESC
 	`
 
 	rows, err := r.pool.Query(ctx, query, mentorID)
