@@ -205,3 +205,32 @@ func (r *LearningRepository) scanLearningProcesses(rows pgx.Rows) ([]*domain.Lea
 
 	return learnings, nil
 }
+
+// UpdateNotes updates notes for a learning process
+func (r *LearningRepository) UpdateNotes(ctx context.Context, id string, notes string) error {
+	query := `
+		UPDATE learning_processes
+		SET notes = $2
+		WHERE id = $1
+		RETURNING updatedAt
+	`
+
+	var updatedAt time.Time
+	var notesPtr *string
+	if notes == "" {
+		notesPtr = nil
+	} else {
+		notesPtr = &notes
+	}
+
+	err := r.pool.QueryRow(ctx, query, id, notesPtr).Scan(&updatedAt)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.ErrLearningNotFound
+		}
+		return fmt.Errorf("failed to update notes: %w", err)
+	}
+
+	return nil
+}

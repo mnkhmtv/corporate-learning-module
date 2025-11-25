@@ -87,6 +87,8 @@ func (h *Handler) InitRoutes(router *gin.Engine, logger *slog.Logger, jwtSecret 
 				learnings.PATCH("/:id/plan/:itemId/toggle", h.learningHandler.TogglePlanItem)
 				learnings.DELETE("/:id/plan/:itemId", h.learningHandler.RemovePlanItem)
 
+				learnings.PUT("/:id/notes", h.learningHandler.UpdateNotes)
+
 				learnings.POST("/:id/complete", h.learningHandler.CompleteLearning)
 			}
 

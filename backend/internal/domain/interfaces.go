@@ -36,5 +36,6 @@ type LearningRepository interface {
 	GetByUserID(ctx context.Context, userID string) ([]*LearningProcess, error)
 	GetByMentorID(ctx context.Context, mentorID string) ([]*LearningProcess, error)
 	UpdatePlan(ctx context.Context, id string, plan []LearningPlanItem) error
+	UpdateNotes(ctx context.Context, id string, notes string) error // ← Добавь это
 	Complete(ctx context.Context, id string, rating int, comment string) error
 }

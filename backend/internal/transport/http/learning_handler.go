@@ -173,3 +173,22 @@ func (h *LearningHandler) GetProgress(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"progress": progress})
 }
+
+// UpdateNotes handles PATCH /api/learnings/:id/notes
+func (h *LearningHandler) UpdateNotes(c *gin.Context) {
+	learningID := c.Param("id")
+
+	var req dto.UpdateNotesDTO
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	learning, err := h.learningService.UpdateNotes(c.Request.Context(), learningID, req.Notes)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, learning)
+}

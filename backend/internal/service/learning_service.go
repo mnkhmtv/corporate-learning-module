@@ -220,3 +220,23 @@ func (s *LearningService) UpdatePlan(ctx context.Context, learningID string, pla
 	// Receive updated learning process
 	return s.learningRepo.GetByID(ctx, learningID)
 }
+
+// UpdateNotes updates notes for a learning process
+func (s *LearningService) UpdateNotes(ctx context.Context, learningID, notes string) (*domain.LearningProcess, error) {
+	learning, err := s.learningRepo.GetByID(ctx, learningID)
+	if err != nil {
+		return nil, err
+	}
+
+	if !learning.IsActive() {
+		return nil, domain.ErrLearningNotActive
+	}
+
+	// Обновить заметки
+	if err := s.learningRepo.UpdateNotes(ctx, learning.ID, notes); err != nil {
+		return nil, fmt.Errorf("failed to update notes: %w", err)
+	}
+
+	// Получить обновленный learning process
+	return s.learningRepo.GetByID(ctx, learningID)
+}
