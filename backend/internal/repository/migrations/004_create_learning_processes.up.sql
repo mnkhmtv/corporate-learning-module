@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS learning_processes (
     completedAt TIMESTAMP WITH TIME ZONE,
     
     -- Ensure one learning process per request
-    CONSTRAINT unique_request_learning UNIQUE(request_id)
+    CONSTRAINT unique_request_learning UNIQUE(requestId)
 );
 
 CREATE INDEX idx_learning_processes_user_id ON learning_processes(userId);

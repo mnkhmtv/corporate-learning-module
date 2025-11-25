@@ -4,19 +4,24 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"github.com/gin-gonic/gin"
+	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres" // драйвер БД
+	_ "github.com/golang-migrate/migrate/v4/source/file"
+
+	// для embed
 	"github.com/mnkhmtv/corporate-learning-module/backend/config"
 	"github.com/mnkhmtv/corporate-learning-module/backend/internal/repository/postgres"
 	"github.com/mnkhmtv/corporate-learning-module/backend/internal/service"
 	transport "github.com/mnkhmtv/corporate-learning-module/backend/internal/transport/http"
 	"github.com/mnkhmtv/corporate-learning-module/backend/pkg/logger"
-
-	"github.com/gin-gonic/gin"
 )
 
 func main() {
@@ -24,10 +29,12 @@ func main() {
 	cfg, err := config.Load("config/config.yaml")
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
+		os.Exit(1)
 	}
 
 	// Initialize logger
 	appLogger := logger.NewLogger(cfg.Env)
+	slog.SetDefault(appLogger)
 
 	// Initialize database
 	dbConfig := postgres.Config{
@@ -39,22 +46,27 @@ func main() {
 		SSLMode:  cfg.Database.SSLMode,
 	}
 
-	ctx := context.Background()
+	ctx, cancelStart := context.WithCancel(context.Background())
+	defer cancelStart()
+
 	pool, err := postgres.NewPool(ctx, dbConfig)
 	if err != nil {
 		appLogger.Error("Failed to connect to database", "error", err)
 		log.Fatalf("Database connection failed: %v", err)
+		os.Exit(1)
 	}
 	defer postgres.Close(pool)
 
 	appLogger.Info("Database connection established")
 
-	// Auto-migrate if enabled
+	// Run database migrations
 	if cfg.Database.AutoMigrate {
 		appLogger.Info("Auto-migration enabled, running migrations...")
+
 		if err := runMigrations(cfg.Database); err != nil {
 			appLogger.Error("Migration failed", "error", err)
 			log.Fatalf("Migration failed: %v", err)
+			os.Exit(1)
 		}
 		appLogger.Info("Migrations completed successfully")
 	}
@@ -106,8 +118,8 @@ func main() {
 
 	appLogger.Info("Shutting down server...")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+	ctx, cancelStop := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancelStop()
 
 	if err := srv.Shutdown(ctx); err != nil {
 		appLogger.Error("Server forced to shutdown", "error", err)
@@ -117,9 +129,33 @@ func main() {
 	appLogger.Info("Server exited successfully")
 }
 
+// runMigrations applies all pending migrations from file system
 func runMigrations(dbCfg config.DatabaseConfig) error {
-	// TODO: Implement migration logic using golang-migrate
-	// For now, this is a placeholder
-	fmt.Println("Migrations would run here")
+	// Construct database URL
+	dbURL := fmt.Sprintf(
+		"postgres://%s:%s@%s:%d/%s?sslmode=%s",
+		dbCfg.User, dbCfg.Password, dbCfg.Host, dbCfg.Port, dbCfg.DBName, dbCfg.SSLMode,
+	)
+
+	// Create migrate instance with file:// source
+	m, err := migrate.New(
+		"file://internal/repository/migrations",
+		dbURL,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create migrate instance: %w", err)
+	}
+	defer m.Close()
+
+	// Run migrations
+	if err := m.Up(); err != nil {
+		if err == migrate.ErrNoChange {
+			log.Println("No new migrations to apply")
+			return nil
+		}
+		return fmt.Errorf("migration up failed: %w", err)
+	}
+
+	log.Println("All migrations applied successfully")
 	return nil
 }
