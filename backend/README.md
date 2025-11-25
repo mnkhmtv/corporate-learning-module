@@ -186,47 +186,11 @@ auth:
   token_ttl: 24h
 ```
 
-## 🧪 Testing
-
-```
-# Unit tests
-go test ./internal/service/... -v
-
-# Integration tests
-make test-integration
-
-# Code coverage
-go test ./... -coverprofile=coverage.out
-go tool cover -html=coverage.out
-```
-
-## 🔧 Development
-
-### Creating a new migration
-
-```
-migrate create -ext sql -dir internal/repository/migrations -seq add_new_table
-```
-
-### Useful Makefile commands
-
-```
-make run              # Start application
-make migrate-up       # Apply migrations
-make migrate-down     # Rollback last migration
-make test             # Run tests
-make lint             # Code check (golangci-lint)
-make docker-build     # Build Docker image
-```
-
 ## 📊 Monitoring (Roadmap)
 
 **MVP (current version):**
 - [x\] Structured logging (log/slog)
 - [x\] Health check endpoint `/health`
 - [x\] Middleware for logging latency
-
-**Planned:**
-- [ ] Prometheus metrics
-- [ ] Grafana dashboards
-- [ ] Distributed tracing (OpenTelemetry)
+- [x\] Prometheus metrics
+- [x\] Grafana dashboards

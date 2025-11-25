@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/mnkhmtv/corporate-learning-module/backend/internal/domain"
+	"github.com/mnkhmtv/corporate-learning-module/backend/internal/pkg/metrics"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -21,6 +23,8 @@ func NewUserRepository(pool *pgxpool.Pool) *UserRepository {
 
 // Create inserts a new user into the database
 func (r *UserRepository) Create(ctx context.Context, user *domain.User) error {
+	start := time.Now()
+
 	query := `
 		INSERT INTO users (name, email, password_hash, role, department, jobTitle, telegram)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -33,6 +37,8 @@ func (r *UserRepository) Create(ctx context.Context, user *domain.User) error {
 		user.Department, user.JobTitle, user.Telegram,
 	).Scan(&user.ID, &user.CreatedAt, &user.UpdatedAt)
 
+	metrics.RecordDbQuery("users.Create", time.Since(start), err)
+
 	if err != nil {
 		return fmt.Errorf("failed to create user: %w", err)
 	}
@@ -42,6 +48,8 @@ func (r *UserRepository) Create(ctx context.Context, user *domain.User) error {
 
 // GetByID retrieves a user by ID
 func (r *UserRepository) GetByID(ctx context.Context, id string) (*domain.User, error) {
+	start := time.Now()
+
 	query := `
 		SELECT id, name, email, password_hash, role, department, jobTitle, telegram, createdAt, updatedAt
 		FROM users
@@ -55,6 +63,8 @@ func (r *UserRepository) GetByID(ctx context.Context, id string) (*domain.User, 
 		&user.CreatedAt, &user.UpdatedAt,
 	)
 
+	metrics.RecordDbQuery("users.GetByID", time.Since(start), err)
+
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, domain.ErrUserNotFound
@@ -67,6 +77,8 @@ func (r *UserRepository) GetByID(ctx context.Context, id string) (*domain.User, 
 
 // GetByEmail retrieves a user by email (for login)
 func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
+	start := time.Now()
+
 	query := `
 		SELECT id, name, email, password_hash, role, department, jobTitle, telegram, createdAt, updatedAt
 		FROM users
@@ -80,6 +92,8 @@ func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*domain.
 		&user.CreatedAt, &user.UpdatedAt,
 	)
 
+	metrics.RecordDbQuery("users.GetByEmail", time.Since(start), err)
+
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, domain.ErrUserNotFound
@@ -92,6 +106,8 @@ func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*domain.
 
 // Update updates user information
 func (r *UserRepository) Update(ctx context.Context, user *domain.User) error {
+	start := time.Now()
+
 	query := `
 		UPDATE users
 		SET name = $2, department = $3, jobTitle = $4, telegram = $5
@@ -103,6 +119,8 @@ func (r *UserRepository) Update(ctx context.Context, user *domain.User) error {
 		ctx, query,
 		user.ID, user.Name, user.Department, user.JobTitle, user.Telegram,
 	).Scan(&user.UpdatedAt)
+
+	metrics.RecordDbQuery("users.Update", time.Since(start), err)
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -116,12 +134,16 @@ func (r *UserRepository) Update(ctx context.Context, user *domain.User) error {
 
 // Delete removes a user from the database
 func (r *UserRepository) Delete(ctx context.Context, id string) error {
+	start := time.Now()
+
 	query := `DELETE FROM users WHERE id = $1`
 
 	result, err := r.pool.Exec(ctx, query, id)
 	if err != nil {
 		return fmt.Errorf("failed to delete user: %w", err)
 	}
+
+	metrics.RecordDbQuery("users.Delete", time.Since(start), err)
 
 	if result.RowsAffected() == 0 {
 		return domain.ErrUserNotFound

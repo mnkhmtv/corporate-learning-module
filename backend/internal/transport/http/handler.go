@@ -5,6 +5,7 @@ import (
 
 	"github.com/mnkhmtv/corporate-learning-module/backend/internal/service"
 	"github.com/mnkhmtv/corporate-learning-module/backend/internal/transport/http/middleware"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/gin-gonic/gin"
 )
@@ -35,6 +36,10 @@ func (h *Handler) InitRoutes(router *gin.Engine, logger *slog.Logger, jwtSecret 
 	// Global middleware
 	router.Use(middleware.RecoveryMiddleware(logger))
 	router.Use(middleware.LoggerMiddleware(logger))
+	router.Use(middleware.PrometheusMiddleware())
+
+	// Prometheus metrics endpoint
+	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	// Health check (no auth required)
 	router.GET("/health", func(c *gin.Context) {

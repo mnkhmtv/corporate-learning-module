@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/mnkhmtv/corporate-learning-module/backend/internal/domain"
+	"github.com/mnkhmtv/corporate-learning-module/backend/internal/pkg/metrics"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -22,6 +23,8 @@ func NewMentorRepository(pool *pgxpool.Pool) *MentorRepository {
 
 // Create inserts a new mentor
 func (r *MentorRepository) Create(ctx context.Context, mentor *domain.Mentor) error {
+	start := time.Now()
+
 	query := `
 		INSERT INTO mentors (name, jobTitle, experience, workload, email, telegram)
 		VALUES ($1, $2, $3, $4, $5, $6)
@@ -34,6 +37,8 @@ func (r *MentorRepository) Create(ctx context.Context, mentor *domain.Mentor) er
 		mentor.Email, mentor.Telegram,
 	).Scan(&mentor.ID, &mentor.CreatedAt, &mentor.UpdatedAt)
 
+	metrics.RecordDbQuery("mentors.Create", time.Since(start), err)
+
 	if err != nil {
 		return fmt.Errorf("failed to create mentor: %w", err)
 	}
@@ -43,6 +48,8 @@ func (r *MentorRepository) Create(ctx context.Context, mentor *domain.Mentor) er
 
 // GetByID retrieves a mentor by ID
 func (r *MentorRepository) GetByID(ctx context.Context, id string) (*domain.Mentor, error) {
+	start := time.Now()
+
 	query := `
 		SELECT id, name, jobTitle, experience, workload, email, telegram, createdAt, updatedAt
 		FROM mentors
@@ -56,6 +63,8 @@ func (r *MentorRepository) GetByID(ctx context.Context, id string) (*domain.Ment
 		&mentor.CreatedAt, &mentor.UpdatedAt,
 	)
 
+	metrics.RecordDbQuery("mentors.GetByID", time.Since(start), err)
+
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, domain.ErrMentorNotFound
@@ -68,6 +77,8 @@ func (r *MentorRepository) GetByID(ctx context.Context, id string) (*domain.Ment
 
 // GetAll retrieves all mentors with optional workload filter
 func (r *MentorRepository) GetAll(ctx context.Context, maxWorkload *int) ([]*domain.Mentor, error) {
+	start := time.Now()
+
 	var query string
 	var args []interface{}
 
@@ -88,6 +99,9 @@ func (r *MentorRepository) GetAll(ctx context.Context, maxWorkload *int) ([]*dom
 	}
 
 	rows, err := r.pool.Query(ctx, query, args...)
+
+	metrics.RecordDbQuery("mentors.GetAll", time.Since(start), err)
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to get mentors: %w", err)
 	}
@@ -116,6 +130,8 @@ func (r *MentorRepository) GetAll(ctx context.Context, maxWorkload *int) ([]*dom
 
 // UpdateWorkload updates mentor's workload
 func (r *MentorRepository) UpdateWorkload(ctx context.Context, id string, workload int) error {
+	start := time.Now()
+
 	query := `
 		UPDATE mentors
 		SET workload = $2
@@ -125,6 +141,8 @@ func (r *MentorRepository) UpdateWorkload(ctx context.Context, id string, worklo
 
 	var updatedAt time.Time
 	err := r.pool.QueryRow(ctx, query, id, workload).Scan(&updatedAt)
+
+	metrics.RecordDbQuery("mentors.UpdateWorkload", time.Since(start), err)
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -138,9 +156,14 @@ func (r *MentorRepository) UpdateWorkload(ctx context.Context, id string, worklo
 
 // Delete removes a mentor
 func (r *MentorRepository) Delete(ctx context.Context, id string) error {
+	start := time.Now()
+
 	query := `DELETE FROM mentors WHERE id = $1`
 
 	result, err := r.pool.Exec(ctx, query, id)
+
+	metrics.RecordDbQuery("mentors.Delete", time.Since(start), err)
+
 	if err != nil {
 		return fmt.Errorf("failed to delete mentor: %w", err)
 	}

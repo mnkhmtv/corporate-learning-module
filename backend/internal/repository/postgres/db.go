@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/mnkhmtv/corporate-learning-module/backend/internal/pkg/metrics"
 )
 
 // Config holds database configuration
@@ -47,6 +48,8 @@ func NewPool(ctx context.Context, cfg Config) (*pgxpool.Pool, error) {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
+	go updateConnectionMetrics(pool)
+
 	return pool, nil
 }
 
@@ -54,5 +57,17 @@ func NewPool(ctx context.Context, cfg Config) (*pgxpool.Pool, error) {
 func Close(pool *pgxpool.Pool) {
 	if pool != nil {
 		pool.Close()
+	}
+}
+
+// updateConnectionMetrics periodically updates connection pool metrics
+func updateConnectionMetrics(pool *pgxpool.Pool) {
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		stat := pool.Stat()
+		metrics.DbConnectionsActive.Set(float64(stat.AcquiredConns()))
+		metrics.DbConnectionsIdle.Set(float64(stat.IdleConns()))
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/mnkhmtv/corporate-learning-module/backend/internal/domain"
+	"github.com/mnkhmtv/corporate-learning-module/backend/internal/pkg/metrics"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -22,6 +23,8 @@ func NewRequestRepository(pool *pgxpool.Pool) *RequestRepository {
 
 // Create inserts a new training request
 func (r *RequestRepository) Create(ctx context.Context, req *domain.TrainingRequest) error {
+	start := time.Now()
+
 	query := `
 		INSERT INTO training_requests (userId, topic, description, status)
 		VALUES ($1, $2, $3, $4)
@@ -33,6 +36,12 @@ func (r *RequestRepository) Create(ctx context.Context, req *domain.TrainingRequ
 		req.UserID, req.Topic, req.Description, req.Status,
 	).Scan(&req.ID, &req.CreatedAt, &req.UpdatedAt)
 
+	metrics.RecordDbQuery("requests.Create", time.Since(start), err)
+
+	if err == nil {
+		metrics.TrainingRequestsTotal.WithLabelValues(string(req.Status)).Inc()
+	}
+
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
@@ -42,6 +51,8 @@ func (r *RequestRepository) Create(ctx context.Context, req *domain.TrainingRequ
 
 // GetByID retrieves a request by ID
 func (r *RequestRepository) GetByID(ctx context.Context, id string) (*domain.TrainingRequest, error) {
+	start := time.Now()
+
 	query := `
 		SELECT id, userId, topic, description, status, createdAt, updatedAt
 		FROM training_requests
@@ -53,6 +64,8 @@ func (r *RequestRepository) GetByID(ctx context.Context, id string) (*domain.Tra
 		&req.ID, &req.UserID, &req.Topic, &req.Description,
 		&req.Status, &req.CreatedAt, &req.UpdatedAt,
 	)
+
+	metrics.RecordDbQuery("requests.GetByID", time.Since(start), err)
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -66,6 +79,8 @@ func (r *RequestRepository) GetByID(ctx context.Context, id string) (*domain.Tra
 
 // GetByUserID retrieves all requests for a specific user
 func (r *RequestRepository) GetByUserID(ctx context.Context, userID string) ([]*domain.TrainingRequest, error) {
+	start := time.Now()
+
 	query := `
 		SELECT id, userId, topic, description, status, createdAt, updatedAt
 		FROM training_requests
@@ -74,6 +89,9 @@ func (r *RequestRepository) GetByUserID(ctx context.Context, userID string) ([]*
 	`
 
 	rows, err := r.pool.Query(ctx, query, userID)
+
+	metrics.RecordDbQuery("requests.GetByUserID", time.Since(start), err)
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to get requests by user: %w", err)
 	}
@@ -84,6 +102,8 @@ func (r *RequestRepository) GetByUserID(ctx context.Context, userID string) ([]*
 
 // GetAll retrieves all requests with optional status filter
 func (r *RequestRepository) GetAll(ctx context.Context, status *string) ([]*domain.TrainingRequest, error) {
+	start := time.Now()
+
 	var query string
 	var args []interface{}
 
@@ -104,6 +124,9 @@ func (r *RequestRepository) GetAll(ctx context.Context, status *string) ([]*doma
 	}
 
 	rows, err := r.pool.Query(ctx, query, args...)
+
+	metrics.RecordDbQuery("requests.GetAll", time.Since(start), err)
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to get all requests: %w", err)
 	}
@@ -114,6 +137,8 @@ func (r *RequestRepository) GetAll(ctx context.Context, status *string) ([]*doma
 
 // UpdateStatus updates the status of a request
 func (r *RequestRepository) UpdateStatus(ctx context.Context, id, status string) error {
+	start := time.Now()
+
 	query := `
 		UPDATE training_requests
 		SET status = $2
@@ -123,6 +148,12 @@ func (r *RequestRepository) UpdateStatus(ctx context.Context, id, status string)
 
 	var updatedAt time.Time
 	err := r.pool.QueryRow(ctx, query, id, status).Scan(&updatedAt)
+
+	metrics.RecordDbQuery("requests.UpdateStatus", time.Since(start), err)
+
+	if err == nil {
+		metrics.TrainingRequestsTotal.WithLabelValues(status).Inc()
+	}
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -136,6 +167,7 @@ func (r *RequestRepository) UpdateStatus(ctx context.Context, id, status string)
 
 // scanRequests is a helper to scan multiple rows into TrainingRequest slice
 func (r *RequestRepository) scanRequests(rows pgx.Rows) ([]*domain.TrainingRequest, error) {
+
 	var requests []*domain.TrainingRequest
 
 	for rows.Next() {
