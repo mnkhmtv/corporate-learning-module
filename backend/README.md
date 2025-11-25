@@ -117,23 +117,51 @@ This will start PostgreSQL + application with migrations.
 
 ### Main endpoint groups:
 
-**Authentication**
-- `POST /api/auth/register` — user registration
-- `POST /api/auth/login` — login and JWT token retrieval
+Вот полный список всех API эндпоинтов для README:
 
-**Training Requests**
-- `GET /api/requests` — all requests (admin)
-- `POST /api/requests` — create request
-- `POST /api/requests/:id/assign` — assign mentor
+## API Endpoints (may change by some time)
 
-**Learning Process**
-- `GET /api/learnings` — my learnings
-- `PUT /api/learnings/:id/plan` — update plan
-- `POST /api/learnings/:id/complete` — complete with feedback
+### Authentication
 
-**Mentors**
-- `GET /api/mentors` — list mentors
-- `POST /api/mentors` — add mentor
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| POST | `/api/auth/register` | Register a new user | ❌ |
+| POST | `/api/auth/login` | Login and get JWT token | ❌ |
+
+### Training Requests
+
+| Method | Endpoint | Description | Auth Required | Role |
+|--------|----------|-------------|---------------|------|
+| POST | `/api/requests` | Create a training request | ✅ | All |
+| GET | `/api/requests/my` | Get my training requests | ✅ | All |
+| GET | `/api/requests` | Get all requests (with optional status filter) | ✅ | Admin |
+| POST | `/api/requests/:id/assign` | Assign mentor to request | ✅ | Admin |
+
+### Mentors
+
+| Method | Endpoint | Description | Auth Required | Role |
+|--------|----------|-------------|---------------|------|
+| GET | `/api/mentors` | Get all mentors | ✅ | All |
+| GET | `/api/mentors/:id` | Get mentor by ID | ✅ | All |
+| POST | `/api/mentors` | Create a new mentor | ✅ | Admin |
+
+### Learning Processes
+
+| Method | Endpoint | Description | Auth Required | Role |
+|--------|----------|-------------|---------------|------|
+| GET | `/api/learnings` | Get my learning processes | ✅ | All |
+| GET | `/api/learnings/:id` | Get learning process by ID | ✅ | All |
+| GET | `/api/learnings/:id/progress` | Get completion progress (%) | ✅ | All |
+| PUT | `/api/learnings/:id/plan` | Update entire learning plan | ✅ | All |
+| PATCH | `/api/learnings/:id/notes` | Update learning notes | ✅ | All |
+| POST | `/api/learnings/:id/complete` | Complete learning with feedback | ✅ | All |
+
+### Health Check
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| GET | `/health` | API health check | ❌ |
+
 
 ## ⚙️ Configuration
 
