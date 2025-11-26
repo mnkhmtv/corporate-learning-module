@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  postgres:
+    env_file: .env
+    image: postgres:15-alpine
+    container_name: ${CONTAINER_DB_NAME:-training_system_db}
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-training_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    env_file: .env
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ${CONTAINER_APP_NAME:-training_system_app}
+    ports:
+      - "${SERVER_PORT:-8080}:${SERVER_PORT:-8080}"
+    environment:
+      ENV: production
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      DB_NAME: ${DB_NAME:-training_db}
+      DB_SSLMODE: ${DB_SSLMODE:-disable}
+      JWT_SECRET: ${JWT_SECRET:-change-this-in-production}
+      AUTO_MIGRATE: ${AUTO_MIGRATE:-true}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    
+  prometheus:
+      image: prom/prometheus:latest
+      container_name: training_system_prometheus
+      ports:
+        - "9090:9090"
+      volumes:
+        - ./prometheus.yml:/etc/prometheus/prometheus.yml
+        - prometheus_data:/prometheus
+      command:
+        - '--config.file=/etc/prometheus/prometheus.yml'
+        - '--storage.tsdb.path=/prometheus'
+      restart: unless-stopped
+  
+  grafana:
+    image: grafana/grafana:latest
+    container_name: training_system_grafana
+    ports:
+      - "3000:3000"
+    environment:
+        - GF_SECURITY_ADMIN_PASSWORD=admin
+        - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+        - grafana_data:/var/lib/grafana
+    depends_on:
+        - prometheus
+    restart: unless-stopped
+    
+volumes:
+  postgres_data:
+  prometheus_data:
+  grafana_data:
