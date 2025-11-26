@@ -2,12 +2,13 @@ version: '3.8'
 
 services:
   postgres:
+    env_file: .env
     image: postgres:15-alpine
-    container_name: training_system_db
+    container_name: ${CONTAINER_DB_NAME:-training_system_db}
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: training_db
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-training_db}
     ports:
       - "5432:5432"
     volumes:
@@ -19,22 +20,23 @@ services:
       retries: 5
 
   app:
+    env_file: .env
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: training_system_app
+    container_name: ${CONTAINER_APP_NAME:-training_system_app}
     ports:
-      - "8080:8080"
+      - "${SERVER_PORT:-8080}:${SERVER_PORT:-8080}"
     environment:
       ENV: production
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_USER: postgres
-      DB_PASSWORD: postgres
-      DB_NAME: training_db
-      DB_SSLMODE: disable
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      DB_NAME: ${DB_NAME:-training_db}
+      DB_SSLMODE: ${DB_SSLMODE:-disable}
       JWT_SECRET: ${JWT_SECRET:-change-this-in-production}
-      AUTO_MIGRATE: "true"
+      AUTO_MIGRATE: ${AUTO_MIGRATE:-true}
     depends_on:
       postgres:
         condition: service_healthy

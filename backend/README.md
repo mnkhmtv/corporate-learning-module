@@ -56,7 +56,6 @@ backend/
 │   └── transport/http/          # Gin handlers + middleware
 ├── pkg/                         # Public reusable utilities
 ├── docker-compose.yml
-├── Makefile
 └── README.md
 ```
 
@@ -89,20 +88,6 @@ For more details, see comments in the source code.
    docker-compose up -d postgres
    ```
 
-4. **Run migrations**
-   ```
-   make migrate-up
-   # or
-   migrate -path ./internal/repository/migrations -database "postgres://user:pass@localhost:5432/training_db?sslmode=disable" up
-   ```
-
-5. **Start the application**
-   ```
-   make run
-   # or
-   go run cmd/app/main.go
-   ```
-
 Server will be available at: `http://localhost:8080`
 
 ### Docker (Full Stack)
@@ -113,54 +98,48 @@ docker-compose up --build
 
 This will start PostgreSQL + application with migrations.
 
-## API Endpoints
-
-### Main endpoint groups:
-
-Вот полный список всех API эндпоинтов для README:
-
 ## API Endpoints (may change by some time)
 
 ### Authentication
 
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| POST | `/api/auth/register` | Register a new user | ❌ |
-| POST | `/api/auth/login` | Login and get JWT token | ❌ |
+| Method | Endpoint             | Description             | Auth Required |
+|--------|----------------------|-------------------------|---------------|
+| POST   | `/api/auth/register` | Register a new user     | ❌             |
+| POST   | `/api/auth/login`    | Login and get JWT token | ❌             |
 
 ### Training Requests
 
-| Method | Endpoint | Description | Auth Required | Role |
-|--------|----------|-------------|---------------|------|
-| POST | `/api/requests` | Create a training request | ✅ | All |
-| GET | `/api/requests/my` | Get my training requests | ✅ | All |
-| GET | `/api/requests` | Get all requests (with optional status filter) | ✅ | Admin |
-| POST | `/api/requests/:id/assign` | Assign mentor to request | ✅ | Admin |
+| Method | Endpoint                   | Description                                    | Auth Required | Role  |
+|--------|----------------------------|------------------------------------------------|---------------|-------|
+| POST   | `/api/requests`            | Create a training request                      | ✅             | All   |
+| GET    | `/api/requests/my`         | Get my training requests                       | ✅             | All   |
+| GET    | `/api/requests`            | Get all requests (with optional status filter) | ✅             | Admin |
+| POST   | `/api/requests/:id/assign` | Assign mentor to request                       | ✅             | Admin |
 
 ### Mentors
 
-| Method | Endpoint | Description | Auth Required | Role |
-|--------|----------|-------------|---------------|------|
-| GET | `/api/mentors` | Get all mentors | ✅ | All |
-| GET | `/api/mentors/:id` | Get mentor by ID | ✅ | All |
-| POST | `/api/mentors` | Create a new mentor | ✅ | Admin |
+| Method | Endpoint           | Description         | Auth Required | Role  |
+|--------|--------------------|---------------------|---------------|-------|
+| GET    | `/api/mentors`     | Get all mentors     | ✅             | All   |
+| GET    | `/api/mentors/:id` | Get mentor by ID    | ✅             | All   |
+| POST   | `/api/mentors`     | Create a new mentor | ✅             | Admin |
 
 ### Learning Processes
 
-| Method | Endpoint | Description | Auth Required | Role |
-|--------|----------|-------------|---------------|------|
-| GET | `/api/learnings` | Get my learning processes | ✅ | All |
-| GET | `/api/learnings/:id` | Get learning process by ID | ✅ | All |
-| GET | `/api/learnings/:id/progress` | Get completion progress (%) | ✅ | All |
-| PUT | `/api/learnings/:id/plan` | Update entire learning plan | ✅ | All |
-| PATCH | `/api/learnings/:id/notes` | Update learning notes | ✅ | All |
-| POST | `/api/learnings/:id/complete` | Complete learning with feedback | ✅ | All |
+| Method | Endpoint                      | Description                     | Auth Required | Role |
+|--------|-------------------------------|---------------------------------|---------------|------|
+| GET    | `/api/learnings`              | Get my learning processes       | ✅             | All  |
+| GET    | `/api/learnings/:id`          | Get learning process by ID      | ✅             | All  |
+| GET    | `/api/learnings/:id/progress` | Get completion progress (%)     | ✅             | All  |
+| PUT    | `/api/learnings/:id/plan`     | Update entire learning plan     | ✅             | All  |
+| PATCH  | `/api/learnings/:id/notes`    | Update learning notes           | ✅             | All  |
+| POST   | `/api/learnings/:id/complete` | Complete learning with feedback | ✅             | All  |
 
 ### Health Check
 
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| GET | `/health` | API health check | ❌ |
+| Method | Endpoint  | Description      | Auth Required |
+|--------|-----------|------------------|---------------|
+| GET    | `/health` | API health check | ❌             |
 
 
 ## ⚙️ Configuration
