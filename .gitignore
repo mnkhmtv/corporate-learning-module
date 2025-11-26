@@ -5,3 +5,7 @@
 # Files and directories
 [Oo]bj/
 [Bb]in/
+
+.next
+node_modules
+next-env.d.ts
