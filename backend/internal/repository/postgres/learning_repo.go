@@ -33,20 +33,19 @@ func (r *LearningRepository) Create(ctx context.Context, learning *domain.Learni
 
 	query := `
 		INSERT INTO learning_processes 
-		(requestId, userId, mentorId, status, plan, notes)
-		VALUES ($1, $2, $3, $4, $5, $6)
-		RETURNING id, createdAt, updatedAt
+		(requestId, userId, mentorId, status, startDate, plan, notes)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		RETURNING id, startDate, createdAt, updatedAt
 	`
 
 	err = r.pool.QueryRow(
 		ctx, query,
 		learning.RequestID, learning.UserID, learning.MentorID,
-		learning.Status, planJSON, learning.Notes,
-	).Scan(&learning.ID, &learning.CreatedAt, &learning.UpdatedAt)
+		learning.Status, learning.StartDate, planJSON, learning.Notes,
+	).Scan(&learning.ID, &learning.StartDate, &learning.CreatedAt, &learning.UpdatedAt)
 
 	metrics.RecordDbQuery("learning.Create", time.Since(start), err)
 
-	// Business metric
 	if err == nil {
 		metrics.LearningProcessesActive.Inc()
 	}
@@ -58,26 +57,37 @@ func (r *LearningRepository) Create(ctx context.Context, learning *domain.Learni
 	return nil
 }
 
-// GetByID retrieves a learning process by ID
+// GetByID retrieves a learning process by ID with JOIN to mentors and requests
 func (r *LearningRepository) GetByID(ctx context.Context, id string) (*domain.LearningProcess, error) {
 	start := time.Now()
 
 	query := `
-		SELECT id, requestId, userId, mentorId, 
-		       status, plan, notes, feedbackRating, feedbackComment,
-		       createdAt, updatedAt, completedAt
-		FROM learning_processes
-		WHERE id = $1
+		SELECT 
+			lp.id, lp.requestId, lp.userId, lp.mentorId,
+			lp.status, lp.startDate, lp.endDate,
+			lp.plan, lp.feedback, lp.notes,
+			lp.createdAt, lp.updatedAt,
+			m.name AS mentorName, 
+			m.email AS mentorEmail, 
+			m.telegram AS mentorTg,
+			r.topic AS topic
+		FROM learning_processes lp
+		INNER JOIN mentors m ON lp.mentorId = m.id
+		INNER JOIN training_requests r ON lp.requestId = r.id
+		WHERE lp.id = $1
 	`
 
 	var learning domain.LearningProcess
 	var planJSON []byte
+	var feedbackJSON []byte
 
 	err := r.pool.QueryRow(ctx, query, id).Scan(
-		&learning.ID, &learning.RequestID, &learning.UserID,
-		&learning.MentorID, &learning.Status, &planJSON, &learning.Notes,
-		&learning.FeedbackRating, &learning.FeedbackComment,
-		&learning.CreatedAt, &learning.UpdatedAt, &learning.CompletedAt,
+		&learning.ID, &learning.RequestID, &learning.UserID, &learning.MentorID,
+		&learning.Status, &learning.StartDate, &learning.EndDate,
+		&planJSON, &feedbackJSON, &learning.Notes,
+		&learning.CreatedAt, &learning.UpdatedAt,
+		&learning.MentorName, &learning.MentorEmail, &learning.MentorTg,
+		&learning.Topic,
 	)
 
 	metrics.RecordDbQuery("learning.GetByID", time.Since(start), err)
@@ -89,8 +99,18 @@ func (r *LearningRepository) GetByID(ctx context.Context, id string) (*domain.Le
 		return nil, fmt.Errorf("failed to get learning process: %w", err)
 	}
 
+	// Unmarshal plan
 	if err := json.Unmarshal(planJSON, &learning.Plan); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal plan: %w", err)
+	}
+
+	// Unmarshal feedback (может быть NULL)
+	if feedbackJSON != nil {
+		var feedback domain.Feedback
+		if err := json.Unmarshal(feedbackJSON, &feedback); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal feedback: %w", err)
+		}
+		learning.Feedback = &feedback
 	}
 
 	return &learning, nil
@@ -101,12 +121,20 @@ func (r *LearningRepository) GetByUserID(ctx context.Context, userID string) ([]
 	start := time.Now()
 
 	query := `
-		SELECT id, requestId, userId, mentorId, 
-		       status, plan, notes, feedbackRating, feedbackComment,
-		       createdAt, updatedAt, completedAt
-		FROM learning_processes
-		WHERE userId = $1
-		ORDER BY createdAt DESC
+		SELECT 
+			lp.id, lp.requestId, lp.userId, lp.mentorId,
+			lp.status, lp.startDate, lp.endDate,
+			lp.plan, lp.feedback, lp.notes,
+			lp.createdAt, lp.updatedAt,
+			m.name AS mentorName, 
+			m.email AS mentorEmail, 
+			m.telegram AS mentorTg,
+			r.topic AS topic
+		FROM learning_processes lp
+		INNER JOIN mentors m ON lp.mentorId = m.id
+		INNER JOIN training_requests r ON lp.requestId = r.id
+		WHERE lp.userId = $1
+		ORDER BY lp.createdAt DESC
 	`
 
 	rows, err := r.pool.Query(ctx, query, userID)
@@ -126,12 +154,20 @@ func (r *LearningRepository) GetByMentorID(ctx context.Context, mentorID string)
 	start := time.Now()
 
 	query := `
-		SELECT id, requestId, userId, mentorId, 
-		       status, plan, notes, feedbackRating, feedbackComment,
-		       createdAt, updatedAt, completedAt
-		FROM learning_processes
-		WHERE mentorId = $1
-		ORDER BY createdAt DESC
+		SELECT 
+			lp.id, lp.requestId, lp.userId, lp.mentorId,
+			lp.status, lp.startDate, lp.endDate,
+			lp.plan, lp.feedback, lp.notes,
+			lp.createdAt, lp.updatedAt,
+			m.name AS mentorName, 
+			m.email AS mentorEmail, 
+			m.telegram AS mentorTg,
+			r.topic AS topic
+		FROM learning_processes lp
+		INNER JOIN mentors m ON lp.mentorId = m.id
+		INNER JOIN training_requests r ON lp.requestId = r.id
+		WHERE lp.mentorId = $1
+		ORDER BY lp.createdAt DESC
 	`
 
 	rows, err := r.pool.Query(ctx, query, mentorID)
@@ -140,6 +176,38 @@ func (r *LearningRepository) GetByMentorID(ctx context.Context, mentorID string)
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to get learning processes by mentor: %w", err)
+	}
+	defer rows.Close()
+
+	return r.scanLearningProcesses(rows)
+}
+
+// GetAll retrieves all learning processes (admin only)
+func (r *LearningRepository) GetAll(ctx context.Context) ([]*domain.LearningProcess, error) {
+	start := time.Now()
+
+	query := `
+		SELECT 
+			lp.id, lp.requestId, lp.userId, lp.mentorId,
+			lp.status, lp.startDate, lp.endDate,
+			lp.plan, lp.feedback, lp.notes,
+			lp.createdAt, lp.updatedAt,
+			m.name AS mentorName, 
+			m.email AS mentorEmail, 
+			m.telegram AS mentorTg,
+			r.topic AS topic
+		FROM learning_processes lp
+		INNER JOIN mentors m ON lp.mentorId = m.id
+		INNER JOIN training_requests r ON lp.requestId = r.id
+		ORDER BY lp.createdAt DESC
+	`
+
+	rows, err := r.pool.Query(ctx, query)
+
+	metrics.RecordDbQuery("learning.GetAll", time.Since(start), err)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get all learning processes: %w", err)
 	}
 	defer rows.Close()
 
@@ -177,75 +245,6 @@ func (r *LearningRepository) UpdatePlan(ctx context.Context, id string, plan []d
 	return nil
 }
 
-// Complete marks learning as completed with feedback
-func (r *LearningRepository) Complete(ctx context.Context, id string, rating int, comment string) error {
-	start := time.Now()
-
-	query := `
-		UPDATE learning_processes
-		SET status = 'completed',
-		    feedbackRating = $2,
-		    feedbackComment = $3,
-		    completedAt = CURRENT_TIMESTAMP
-		WHERE id = $1
-		RETURNING updatedAt
-	`
-
-	var updatedAt time.Time
-	err := r.pool.QueryRow(ctx, query, id, rating, comment).Scan(&updatedAt)
-
-	metrics.RecordDbQuery("learning.Complete", time.Since(start), err)
-
-	// Business metrics
-	if err == nil {
-		metrics.LearningProcessesActive.Dec()
-		metrics.LearningProcessesCompleted.Inc()
-		metrics.FeedbackRatingSum.Add(float64(rating))
-		metrics.FeedbackRatingCount.Inc()
-	}
-
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return domain.ErrLearningNotFound
-		}
-		return fmt.Errorf("failed to complete learning: %w", err)
-	}
-
-	return nil
-}
-
-// scanLearningProcesses is a helper to scan multiple rows
-func (r *LearningRepository) scanLearningProcesses(rows pgx.Rows) ([]*domain.LearningProcess, error) {
-	var learnings []*domain.LearningProcess
-
-	for rows.Next() {
-		var learning domain.LearningProcess
-		var planJSON []byte
-
-		err := rows.Scan(
-			&learning.ID, &learning.RequestID, &learning.UserID,
-			&learning.MentorID, &learning.Status, &planJSON, &learning.Notes,
-			&learning.FeedbackRating, &learning.FeedbackComment,
-			&learning.CreatedAt, &learning.UpdatedAt, &learning.CompletedAt,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan learning process: %w", err)
-		}
-
-		if err := json.Unmarshal(planJSON, &learning.Plan); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal plan: %w", err)
-		}
-
-		learnings = append(learnings, &learning)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("rows error: %w", err)
-	}
-
-	return learnings, nil
-}
-
 // UpdateNotes updates notes for a learning process
 func (r *LearningRepository) UpdateNotes(ctx context.Context, id string, notes string) error {
 	start := time.Now()
@@ -277,4 +276,130 @@ func (r *LearningRepository) UpdateNotes(ctx context.Context, id string, notes s
 	}
 
 	return nil
+}
+
+// Update updates full learning process info (admin only)
+func (r *LearningRepository) Update(ctx context.Context, id string, learning *domain.LearningProcess) error {
+	start := time.Now()
+
+	planJSON, err := json.Marshal(learning.Plan)
+	if err != nil {
+		return fmt.Errorf("failed to marshal plan: %w", err)
+	}
+
+	var feedbackJSON []byte
+	if learning.Feedback != nil {
+		feedbackJSON, err = json.Marshal(learning.Feedback)
+		if err != nil {
+			return fmt.Errorf("failed to marshal feedback: %w", err)
+		}
+	}
+
+	query := `
+		UPDATE learning_processes
+		SET status = $2,
+		    plan = $3,
+		    feedback = $4,
+		    notes = $5,
+		    endDate = $6
+		WHERE id = $1
+		RETURNING updatedAt
+	`
+
+	var updatedAt time.Time
+	err = r.pool.QueryRow(ctx, query, id, learning.Status, planJSON, feedbackJSON, learning.Notes, learning.EndDate).Scan(&updatedAt)
+
+	metrics.RecordDbQuery("learning.Update", time.Since(start), err)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.ErrLearningNotFound
+		}
+		return fmt.Errorf("failed to update learning: %w", err)
+	}
+
+	return nil
+}
+
+// Complete marks learning as completed with feedback
+func (r *LearningRepository) Complete(ctx context.Context, id string, feedback domain.Feedback) error {
+	start := time.Now()
+
+	feedbackJSON, err := json.Marshal(feedback)
+	if err != nil {
+		return fmt.Errorf("failed to marshal feedback: %w", err)
+	}
+
+	query := `
+		UPDATE learning_processes
+		SET status = 'completed',
+		    feedback = $2,
+		    endDate = CURRENT_TIMESTAMP
+		WHERE id = $1
+		RETURNING endDate, updatedAt
+	`
+
+	var endDate, updatedAt time.Time
+	err = r.pool.QueryRow(ctx, query, id, feedbackJSON).Scan(&endDate, &updatedAt)
+
+	metrics.RecordDbQuery("learning.Complete", time.Since(start), err)
+
+	if err == nil {
+		metrics.LearningProcessesActive.Dec()
+		metrics.LearningProcessesCompleted.Inc()
+		metrics.FeedbackRatingSum.Add(float64(feedback.Rating))
+		metrics.FeedbackRatingCount.Inc()
+	}
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.ErrLearningNotFound
+		}
+		return fmt.Errorf("failed to complete learning: %w", err)
+	}
+
+	return nil
+}
+
+// scanLearningProcesses is a helper to scan multiple rows
+func (r *LearningRepository) scanLearningProcesses(rows pgx.Rows) ([]*domain.LearningProcess, error) {
+	var learnings []*domain.LearningProcess
+
+	for rows.Next() {
+		var learning domain.LearningProcess
+		var planJSON []byte
+		var feedbackJSON []byte
+
+		err := rows.Scan(
+			&learning.ID, &learning.RequestID, &learning.UserID, &learning.MentorID,
+			&learning.Status, &learning.StartDate, &learning.EndDate,
+			&planJSON, &feedbackJSON, &learning.Notes,
+			&learning.CreatedAt, &learning.UpdatedAt,
+			&learning.MentorName, &learning.MentorEmail, &learning.MentorTg,
+			&learning.Topic,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan learning process: %w", err)
+		}
+
+		if err := json.Unmarshal(planJSON, &learning.Plan); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal plan: %w", err)
+		}
+
+		if feedbackJSON != nil {
+			var feedback domain.Feedback
+			if err := json.Unmarshal(feedbackJSON, &feedback); err != nil {
+				return nil, fmt.Errorf("failed to unmarshal feedback: %w", err)
+			}
+			learning.Feedback = &feedback
+		}
+
+		learnings = append(learnings, &learning)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows error: %w", err)
+	}
+
+	return learnings, nil
 }

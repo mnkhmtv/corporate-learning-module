@@ -84,6 +84,24 @@ func (s *RequestService) ApproveRequest(ctx context.Context, requestID string) e
 	return s.requestRepo.UpdateStatus(ctx, request.ID, string(request.Status))
 }
 
+// UpdateRequest updates an existing training request
+func (s *RequestService) UpdateRequest(ctx context.Context, id string, topic, description string) (*domain.TrainingRequest, error) {
+	request, err := s.requestRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Update fields
+	request.Topic = topic
+	request.Description = description
+
+	if err := s.requestRepo.Update(ctx, request); err != nil {
+		return nil, fmt.Errorf("failed to update request: %w", err)
+	}
+
+	return request, nil
+}
+
 // RejectRequest rejects a training request
 func (s *RequestService) RejectRequest(ctx context.Context, requestID string) error {
 	request, err := s.requestRepo.GetByID(ctx, requestID)

@@ -135,6 +135,33 @@ func (r *RequestRepository) GetAll(ctx context.Context, status *string) ([]*doma
 	return r.scanRequests(rows)
 }
 
+// Update updates an existing training request
+func (r *RequestRepository) Update(ctx context.Context, req *domain.TrainingRequest) error {
+	start := time.Now()
+
+	query := `
+		UPDATE training_requests
+		SET topic = $2, description = $3
+		WHERE id = $1
+		RETURNING updatedAt
+	`
+
+	var updatedAt time.Time
+	err := r.pool.QueryRow(ctx, query, req.ID, req.Topic, req.Description).Scan(&updatedAt)
+
+	metrics.RecordDbQuery("requests.Update", time.Since(start), err)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.ErrRequestNotFound
+		}
+		return fmt.Errorf("failed to update request: %w", err)
+	}
+
+	req.UpdatedAt = updatedAt
+	return nil
+}
+
 // UpdateStatus updates the status of a request
 func (r *RequestRepository) UpdateStatus(ctx context.Context, id, status string) error {
 	start := time.Now()

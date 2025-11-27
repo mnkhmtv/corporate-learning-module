@@ -26,6 +26,16 @@ type CreateMentorDTO struct {
 	Telegram   string `json:"telegram"`
 }
 
+// UpdateMentorDTO represents mentor update input
+type UpdateMentorDTO struct {
+	Name       string `json:"name" binding:"required"`
+	JobTitle   string `json:"jobTitle" binding:"required"`
+	Experience string `json:"experience" binding:"required"`
+	Workload   int    `json:"workload" binding:"required,min=0,max=5"`
+	Email      string `json:"email" binding:"required,email"`
+	Telegram   string `json:"telegram"`
+}
+
 // GetAllMentors handles GET /api/mentors
 func (h *MentorHandler) GetAllMentors(c *gin.Context) {
 	// Check if filtering by availability
@@ -80,4 +90,32 @@ func (h *MentorHandler) CreateMentor(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, mentor)
+}
+
+// UpdateMentor handles PUT /api/mentors/:id (admin only)
+func (h *MentorHandler) UpdateMentor(c *gin.Context) {
+	id := c.Param("id")
+
+	var req UpdateMentorDTO
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	mentor, err := h.mentorService.UpdateMentor(
+		c.Request.Context(),
+		id,
+		req.Name,
+		req.JobTitle,
+		req.Experience,
+		req.Email,
+		req.Telegram,
+		req.Workload,
+	)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, mentor)
 }

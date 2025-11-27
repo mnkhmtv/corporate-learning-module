@@ -128,6 +128,37 @@ func (r *MentorRepository) GetAll(ctx context.Context, maxWorkload *int) ([]*dom
 	return mentors, nil
 }
 
+// Update updates an existing mentor
+func (r *MentorRepository) Update(ctx context.Context, mentor *domain.Mentor) error {
+	start := time.Now()
+
+	query := `
+		UPDATE mentors
+		SET name = $2, jobTitle = $3, experience = $4, workload = $5, email = $6, telegram = $7
+		WHERE id = $1
+		RETURNING updatedAt
+	`
+
+	var updatedAt time.Time
+	err := r.pool.QueryRow(
+		ctx, query,
+		mentor.ID, mentor.Name, mentor.JobTitle, mentor.Experience,
+		mentor.Workload, mentor.Email, mentor.Telegram,
+	).Scan(&updatedAt)
+
+	metrics.RecordDbQuery("mentors.Update", time.Since(start), err)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.ErrMentorNotFound
+		}
+		return fmt.Errorf("failed to update mentor: %w", err)
+	}
+
+	mentor.UpdatedAt = updatedAt
+	return nil
+}
+
 // UpdateWorkload updates mentor's workload
 func (r *MentorRepository) UpdateWorkload(ctx context.Context, id string, workload int) error {
 	start := time.Now()

@@ -1,6 +1,9 @@
 package domain
 
-import "time"
+import (
+	"errors"
+	"time"
+)
 
 // LearningStatus defines the status of a learning process
 type LearningStatus string
@@ -10,20 +13,36 @@ const (
 	LearningCompleted LearningStatus = "completed"
 )
 
+// Feedback represents feedback for completed learning
+type Feedback struct {
+	Rating  int    `json:"rating"`
+	Comment string `json:"comment"`
+}
+
 // LearningProcess represents an active or completed learning session
 type LearningProcess struct {
-	ID              string             `json:"id"`
-	RequestID       string             `json:"requestId"`
-	UserID          string             `json:"userId"`
-	MentorID        string             `json:"mentorId"`
-	Status          LearningStatus     `json:"status"`
-	Plan            []LearningPlanItem `json:"plan"`
-	Notes           *string            `json:"notes,omitempty"`
-	FeedbackRating  *int               `json:"feedbackRating,omitempty"`
-	FeedbackComment *string            `json:"feedbackComment,omitempty"`
-	CreatedAt       time.Time          `json:"createdAt"`
-	UpdatedAt       time.Time          `json:"updatedAt"`
-	CompletedAt     *time.Time         `json:"completedAt,omitempty"`
+	ID        string `json:"id"`
+	RequestID string `json:"requestId"`
+	UserID    string `json:"userId"`
+	MentorID  string `json:"mentorId"`
+
+	// JOIN fields
+	MentorName  string `json:"mentorName"`
+	MentorEmail string `json:"mentorEmail"`
+	MentorTg    string `json:"mentorTg"`
+	Topic       string `json:"topic"`
+
+	Status    LearningStatus `json:"status"`
+	StartDate time.Time      `json:"startDate"`
+	EndDate   *time.Time     `json:"endDate,omitempty"`
+
+	Plan     []LearningPlanItem `json:"plan"`
+	Feedback *Feedback          `json:"feedback,omitempty"`
+	Notes    *string            `json:"notes,omitempty"`
+
+	// Audit fields
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
 }
 
 // IsActive checks if learning process is ongoing
@@ -106,11 +125,12 @@ func (lp *LearningProcess) Complete(rating int, comment string) error {
 	}
 
 	lp.Status = LearningCompleted
-	lp.FeedbackRating = &rating
-	lp.FeedbackComment = &comment
+	lp.Feedback = &Feedback{
+		Rating:  rating,
+		Comment: comment,
+	}
 	now := time.Now()
-	lp.CompletedAt = &now
-	lp.UpdatedAt = now
+	lp.EndDate = &now
 
 	return nil
 }
@@ -140,4 +160,15 @@ func (lp *LearningProcess) GetCompletedItemsCount() int {
 		}
 	}
 	return count
+}
+
+// Validate validates feedback data
+func (f *Feedback) Validate() error {
+	if f.Rating < 1 || f.Rating > 5 {
+		return ErrInvalidRating
+	}
+	if f.Comment == "" {
+		return errors.New("feedback comment cannot be empty")
+	}
+	return nil
 }

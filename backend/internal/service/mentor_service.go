@@ -81,3 +81,30 @@ func (s *MentorService) DecrementMentorWorkload(ctx context.Context, mentorID st
 	mentor.DecrementWorkload()
 	return s.mentorRepo.UpdateWorkload(ctx, mentor.ID, mentor.Workload)
 }
+
+// UpdateMentor updates an existing mentor (admin only)
+func (s *MentorService) UpdateMentor(ctx context.Context, id string, name, jobTitle, experience, email, telegram string, workload int) (*domain.Mentor, error) {
+	mentor, err := s.mentorRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate workload
+	if workload < 0 || workload > 5 {
+		return nil, fmt.Errorf("workload must be between 0 and 5")
+	}
+
+	// Update fields
+	mentor.Name = name
+	mentor.JobTitle = jobTitle
+	mentor.Experience = &experience
+	mentor.Email = email
+	mentor.Telegram = &telegram
+	mentor.Workload = workload
+
+	if err := s.mentorRepo.Update(ctx, mentor); err != nil {
+		return nil, fmt.Errorf("failed to update mentor: %w", err)
+	}
+
+	return mentor, nil
+}

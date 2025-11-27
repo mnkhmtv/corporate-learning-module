@@ -7,7 +7,6 @@ import (
 	"github.com/mnkhmtv/corporate-learning-module/backend/internal/domain"
 	"github.com/mnkhmtv/corporate-learning-module/backend/internal/service"
 	"github.com/mnkhmtv/corporate-learning-module/backend/internal/transport/http/dto"
-	"github.com/mnkhmtv/corporate-learning-module/backend/internal/transport/http/middleware"
 )
 
 type LearningHandler struct {
@@ -20,22 +19,35 @@ func NewLearningHandler(learningService *service.LearningService) *LearningHandl
 	}
 }
 
-// GetMyLearnings handles GET /api/learnings
-func (h *LearningHandler) GetMyLearnings(c *gin.Context) {
-	userID, _ := middleware.GetUserID(c)
-
-	learnings, err := h.learningService.GetUserLearnings(c.Request.Context(), userID)
+// GetAllLearnings handles GET /api/learnings (admin only)
+func (h *LearningHandler) GetAllLearnings(c *gin.Context) {
+	learnings, err := h.learningService.GetAllLearnings(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, learnings)
+	c.JSON(http.StatusOK, gin.H{"learnings": learnings})
+}
+
+// GetMyLearnings handles GET /api/learnings/my
+func (h *LearningHandler) GetMyLearnings(c *gin.Context) {
+	userID, _ := c.Get("userID")
+
+	learnings, err := h.learningService.GetUserLearnings(c.Request.Context(), userID.(string))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"learnings": learnings})
 }
 
 // GetLearningByID handles GET /api/learnings/:id
 func (h *LearningHandler) GetLearningByID(c *gin.Context) {
 	learningID := c.Param("id")
+	userID, _ := c.Get("userID")
+	role, _ := c.Get("role")
 
 	learning, err := h.learningService.GetLearningByID(c.Request.Context(), learningID)
 	if err != nil {
@@ -43,20 +55,46 @@ func (h *LearningHandler) GetLearningByID(c *gin.Context) {
 		return
 	}
 
+	// Access control: owner or admin
+	if learning.UserID != userID.(string) && role.(string) != "admin" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
+		return
+	}
+
 	c.JSON(http.StatusOK, learning)
 }
 
-// AddPlanItem handles POST /api/learnings/:id/plan
-func (h *LearningHandler) AddPlanItem(c *gin.Context) {
+// UpdateLearning handles PUT /api/learnings/:id (admin only)
+func (h *LearningHandler) UpdateLearning(c *gin.Context) {
 	learningID := c.Param("id")
 
-	var req dto.AddPlanItemDTO
+	var req dto.UpdateLearningDTO
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	learning, err := h.learningService.AddPlanItem(c.Request.Context(), learningID, req.Text)
+	// Convert DTO to domain
+	status := domain.LearningStatus(req.Status)
+	plan := dto.ToPlanItems(req.Plan)
+
+	var feedback *domain.Feedback
+	if req.Feedback != nil {
+		feedback = &domain.Feedback{
+			Rating:  req.Feedback.Rating,
+			Comment: req.Feedback.Comment,
+		}
+	}
+
+	learning, err := h.learningService.UpdateLearning(
+		c.Request.Context(),
+		learningID,
+		req.Topic,
+		status,
+		plan,
+		feedback,
+		req.Notes,
+	)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -65,9 +103,11 @@ func (h *LearningHandler) AddPlanItem(c *gin.Context) {
 	c.JSON(http.StatusOK, learning)
 }
 
-// UpdatePlan handles PUT /api/learnings/:id/plan (обновление всего плана)
+// UpdatePlan handles PUT /api/learnings/:id/plan
 func (h *LearningHandler) UpdatePlan(c *gin.Context) {
 	learningID := c.Param("id")
+	userID, _ := c.Get("userID")
+	role, _ := c.Get("role")
 
 	var req dto.UpdatePlanDTO
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -75,17 +115,21 @@ func (h *LearningHandler) UpdatePlan(c *gin.Context) {
 		return
 	}
 
-	// Конвертируем DTO в domain модель
-	planItems := make([]domain.LearningPlanItem, len(req.Plan))
-	for i, item := range req.Plan {
-		planItems[i] = domain.LearningPlanItem{
-			ID:        item.ID,
-			Text:      item.Text,
-			Completed: item.Completed,
-		}
+	// Check access: owner or admin
+	existingLearning, err := h.learningService.GetLearningByID(c.Request.Context(), learningID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
 	}
 
-	learning, err := h.learningService.UpdatePlan(c.Request.Context(), learningID, planItems)
+	if existingLearning.UserID != userID.(string) && role.(string) != "admin" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
+		return
+	}
+
+	plan := dto.ToPlanItems(req.Plan)
+
+	learning, err := h.learningService.UpdatePlan(c.Request.Context(), learningID, plan)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -94,89 +138,11 @@ func (h *LearningHandler) UpdatePlan(c *gin.Context) {
 	c.JSON(http.StatusOK, learning)
 }
 
-// UpdatePlanItem handles PUT /api/learnings/:id/plan/:itemId
-func (h *LearningHandler) UpdatePlanItem(c *gin.Context) {
-	learningID := c.Param("id")
-	itemID := c.Param("itemId")
-
-	var req dto.UpdatePlanItemDTO
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	err := h.learningService.UpdatePlanItem(c.Request.Context(), learningID, itemID, req.Text, req.Completed)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "plan item updated successfully"})
-}
-
-// TogglePlanItem handles PATCH /api/learnings/:id/plan/:itemId/toggle
-func (h *LearningHandler) TogglePlanItem(c *gin.Context) {
-	learningID := c.Param("id")
-	itemID := c.Param("itemId")
-
-	err := h.learningService.TogglePlanItem(c.Request.Context(), learningID, itemID)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "plan item toggled successfully"})
-}
-
-// RemovePlanItem handles DELETE /api/learnings/:id/plan/:itemId
-func (h *LearningHandler) RemovePlanItem(c *gin.Context) {
-	learningID := c.Param("id")
-	itemID := c.Param("itemId")
-
-	err := h.learningService.RemovePlanItem(c.Request.Context(), learningID, itemID)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "plan item removed successfully"})
-}
-
-// CompleteLearning handles POST /api/learnings/:id/complete
-func (h *LearningHandler) CompleteLearning(c *gin.Context) {
-	learningID := c.Param("id")
-
-	var req dto.CompleteLearningDTO
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	err := h.learningService.CompleteLearning(c.Request.Context(), learningID, req.Rating, req.Comment)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "learning completed successfully"})
-}
-
-// GetProgress handles GET /api/learnings/:id/progress
-func (h *LearningHandler) GetProgress(c *gin.Context) {
-	learningID := c.Param("id")
-
-	progress, err := h.learningService.GetLearningProgress(c.Request.Context(), learningID)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"progress": progress})
-}
-
-// UpdateNotes handles PATCH /api/learnings/:id/notes
+// UpdateNotes handles PUT /api/learnings/:id/notes
 func (h *LearningHandler) UpdateNotes(c *gin.Context) {
 	learningID := c.Param("id")
+	userID, _ := c.Get("userID")
+	role, _ := c.Get("role")
 
 	var req dto.UpdateNotesDTO
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -184,7 +150,57 @@ func (h *LearningHandler) UpdateNotes(c *gin.Context) {
 		return
 	}
 
+	// Check access: owner or admin
+	existingLearning, err := h.learningService.GetLearningByID(c.Request.Context(), learningID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	if existingLearning.UserID != userID.(string) && role.(string) != "admin" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
+		return
+	}
+
 	learning, err := h.learningService.UpdateNotes(c.Request.Context(), learningID, req.Notes)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, learning)
+}
+
+// CompleteLearning handles POST /api/learnings/:id/complete
+func (h *LearningHandler) CompleteLearning(c *gin.Context) {
+	learningID := c.Param("id")
+	userID, _ := c.Get("userID")
+	role, _ := c.Get("role")
+
+	var req dto.CompleteLearningDTO
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Check access: owner or admin
+	existingLearning, err := h.learningService.GetLearningByID(c.Request.Context(), learningID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	if existingLearning.UserID != userID.(string) && role.(string) != "admin" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
+		return
+	}
+
+	learning, err := h.learningService.CompleteLearning(
+		c.Request.Context(),
+		learningID,
+		req.Rating,
+		req.Comment,
+	)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
