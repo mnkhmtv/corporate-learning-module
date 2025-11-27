@@ -27,7 +27,7 @@ func NewHandler(
 ) *Handler {
 	return &Handler{
 		authHandler:     NewAuthHandler(authService, userService),
-		userHandler:     NewUserHandler(userService),
+		userHandler:     NewUserHandler(userService, learningService, requestService),
 		requestHandler:  NewRequestHandler(requestService, learningService),
 		learningHandler: NewLearningHandler(learningService),
 		mentorHandler:   NewMentorHandler(mentorService),
@@ -71,8 +71,10 @@ func (h *Handler) InitRoutes(router *gin.Engine, logger *slog.Logger, jwtSecret 
 		{
 			// Admin only
 			users.GET("", middleware.AdminOnly(), h.userHandler.GetAllUsers)
-			users.GET("/:id", middleware.AdminOnly(), h.userHandler.GetUserByID)
-			users.PUT("/:id", middleware.AdminOnly(), h.userHandler.UpdateUserByID)
+			users.GET("/:id", middleware.OwnerOrAdminOnly(), h.userHandler.GetUserByID)
+			users.PUT("/:id", middleware.OwnerOrAdminOnly(), h.userHandler.UpdateUserByID)
+			users.GET("/:id/requests", middleware.OwnerOrAdminOnly(), h.userHandler.GetUserRequests)
+			users.GET("/:id/learnings", middleware.OwnerOrAdminOnly(), h.userHandler.GetUserLearnings)
 		}
 
 		// Requests /api/requests
@@ -84,6 +86,7 @@ func (h *Handler) InitRoutes(router *gin.Engine, logger *slog.Logger, jwtSecret 
 			requests.GET("/my", h.requestHandler.GetMyRequests)
 			requests.GET("/:id", h.requestHandler.GetRequestByID)
 			requests.PUT("/:id", h.requestHandler.UpdateRequest)
+			requests.POST("/:id/assign", middleware.AdminOnly(), h.requestHandler.AssignMentor)
 		}
 
 		// Mentors /api/mentors
@@ -104,7 +107,6 @@ func (h *Handler) InitRoutes(router *gin.Engine, logger *slog.Logger, jwtSecret 
 			learnings.POST("", h.learningHandler.CreateLearning)
 			learnings.GET("/:id", h.learningHandler.GetLearningByID)
 			learnings.PUT("/:id", middleware.AdminOnly(), h.learningHandler.UpdateLearning)
-			learnings.POST("/:id/assign", middleware.AdminOnly(), h.learningHandler.AssignMentor)
 			learnings.PUT("/:id/plan", h.learningHandler.UpdatePlan)
 			learnings.PUT("/:id/notes", h.learningHandler.UpdateNotes)
 			learnings.POST("/:id/complete", h.learningHandler.CompleteLearning)

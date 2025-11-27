@@ -41,11 +41,6 @@ type CompleteLearningDTO struct {
 	Comment string `json:"comment" binding:"required" example:"Excellent progress and understanding"`
 }
 
-// AssignMentorDTO represents mentor assignment request
-type AssignMentorDTO struct {
-	MentorID string `json:"mentorId" binding:"required"`
-}
-
 // FeedbackDTO represents feedback
 type FeedbackDTO struct {
 	Rating  int    `json:"rating" binding:"required,min=1,max=5" example:"4"`

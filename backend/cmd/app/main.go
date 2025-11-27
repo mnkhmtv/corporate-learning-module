@@ -69,7 +69,7 @@ func main() {
 	// Initialize services
 	authService := service.NewAuthService(userRepo, cfg.Auth.JWTSecret, cfg.Auth.TokenTTL)
 	userService := service.NewUserService(userRepo)
-	requestService := service.NewRequestService(requestRepo, userRepo)
+	requestService := service.NewRequestService(requestRepo, userRepo, mentorRepo, learningRepo)
 	mentorService := service.NewMentorService(mentorRepo)
 	learningService := service.NewLearningService(learningRepo, mentorRepo, requestRepo)
 

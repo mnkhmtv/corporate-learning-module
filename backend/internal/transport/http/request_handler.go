@@ -151,3 +151,27 @@ func (h *RequestHandler) UpdateRequest(c *gin.Context) {
 	responseDTO := dto.ToRequestResponseDTO(request)
 	c.JSON(http.StatusOK, responseDTO)
 }
+
+// AssignMentor handles POST /api/requests/:id/assign (admin only)
+func (h *RequestHandler) AssignMentor(c *gin.Context) {
+	requestID := c.Param("id")
+
+	var req dto.AssignMentorDTO
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	learning, err := h.requestService.AssignMentor(
+		c.Request.Context(),
+		requestID,
+		req.MentorID,
+	)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	responseDTO := dto.ToLearningResponseDTO(learning)
+	c.JSON(http.StatusCreated, responseDTO)
+}
