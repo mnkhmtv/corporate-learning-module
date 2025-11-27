@@ -1,18 +1,20 @@
 import { create } from 'zustand';
-import { User, TrainingRequest, LearningProcess, Mentor } from '@/lib/types';
-import { mockService } from '@/lib/mock-service';
+import { User, TrainingRequest, LearningProcess, Mentor, LearningPlanItem } from '@/lib/types';
+import { apiService } from '@/lib/api-service';
 
 interface AppState {
   user: User | null;
   isLoading: boolean;
+  isAuthLoading: boolean;
   requests: TrainingRequest[];
   learnings: LearningProcess[];
   mentors: Mentor[];
   
   // Actions
-  login: (email: string) => Promise<boolean>;
+  login: (data: { email: string; password: string }) => Promise<boolean>;
   logout: () => void;
   register: (data: any) => Promise<void>;
+  checkAuth: () => Promise<void>;
   
   fetchUserData: () => Promise<void>;
   fetchAllRequests: () => Promise<void>; // Admin only
@@ -21,25 +23,31 @@ interface AppState {
   assignMentor: (requestId: string, mentorId: string) => Promise<void>;
   
   fetchLearning: (id: string) => Promise<LearningProcess | undefined>;
-  updateLearningPlan: (id: string, plan: any[]) => Promise<void>;
+  updateLearningPlan: (id: string, plan: LearningPlanItem[]) => Promise<void>;
   completeLearning: (id: string, feedback: { rating: number, comment: string }) => Promise<void>;
 }
 
 export const useStore = create<AppState>((set, get) => ({
   user: null,
   isLoading: false,
+  isAuthLoading: true,
   requests: [],
   learnings: [],
   mentors: [],
 
-  login: async (email: string) => {
+  login: async (data) => {
     set({ isLoading: true });
     try {
-      const user = await mockService.login(email);
-      if (user) {
-        set({ user });
-        return true;
+      const { token, user } = await apiService.login(data);
+      localStorage.setItem('token', token);
+      set({ user });
+      // Fetch initial data after login
+      if (user.role === 'admin') {
+        // For now, component logic handles what to fetch
       }
+      return true;
+    } catch (error) {
+      console.error('Login failed:', error);
       return false;
     } finally {
       set({ isLoading: false });
@@ -47,16 +55,38 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   logout: () => {
+    localStorage.removeItem('token');
     set({ user: null, requests: [], learnings: [] });
   },
 
   register: async (data) => {
     set({ isLoading: true });
     try {
-      const user = await mockService.register(data);
-      set({ user });
+      await apiService.register(data);
+      // After register, usually we want to login automatically or redirect to login
+      // The UI handles redirection probably.
     } finally {
       set({ isLoading: false });
+    }
+  },
+
+  checkAuth: async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      set({ isAuthLoading: false });
+      return;
+    }
+
+    // No need to set isLoading here, we have a dedicated flag
+    try {
+      const user = await apiService.getMe();
+      set({ user });
+    } catch (error) {
+      console.error('Auth check failed:', error);
+      localStorage.removeItem('token');
+      set({ user: null });
+    } finally {
+      set({ isAuthLoading: false });
     }
   },
 
@@ -67,8 +97,8 @@ export const useStore = create<AppState>((set, get) => ({
     set({ isLoading: true });
     try {
       const [requests, learnings] = await Promise.all([
-        mockService.getUserRequests(user.id),
-        mockService.getUserLearnings(user.id)
+        apiService.getMyRequests(),
+        apiService.getMyLearnings()
       ]);
       set({ requests, learnings });
     } finally {
@@ -79,7 +109,7 @@ export const useStore = create<AppState>((set, get) => ({
   fetchAllRequests: async () => {
     set({ isLoading: true });
     try {
-      const requests = await mockService.getRequests();
+      const requests = await apiService.getAllRequests();
       set({ requests });
     } finally {
       set({ isLoading: false });
@@ -91,7 +121,7 @@ export const useStore = create<AppState>((set, get) => ({
     if (!user) return;
     set({ isLoading: true });
     try {
-      await mockService.createRequest(user.id, data);
+      await apiService.createRequest(data);
       await get().fetchUserData();
     } finally {
       set({ isLoading: false });
@@ -99,14 +129,14 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   fetchMentors: async () => {
-    const mentors = await mockService.getMentors();
+    const mentors = await apiService.getMentors();
     set({ mentors });
   },
 
   assignMentor: async (requestId, mentorId) => {
     set({ isLoading: true });
     try {
-      await mockService.assignMentor(requestId, mentorId);
+      await apiService.assignMentor(requestId, mentorId);
       await get().fetchAllRequests(); // Refresh list
     } finally {
       set({ isLoading: false });
@@ -116,26 +146,24 @@ export const useStore = create<AppState>((set, get) => ({
   fetchLearning: async (id) => {
     set({ isLoading: true });
     try {
-      return await mockService.getLearning(id);
+      return await apiService.getLearning(id);
     } finally {
       set({ isLoading: false });
     }
   },
 
   updateLearningPlan: async (id, plan) => {
-    await mockService.updateLearningPlan(id, plan);
-    const learning = await mockService.getLearning(id);
-    // update local state if needed
+    await apiService.updatePlan(id, plan);
+    // TODO: Update local state optimistically if needed.
   },
 
   completeLearning: async (id, feedback) => {
     set({ isLoading: true });
     try {
-      await mockService.completeLearning(id, feedback);
+      await apiService.completeLearning(id, feedback);
       await get().fetchUserData();
     } finally {
       set({ isLoading: false });
     }
   }
 }));
-

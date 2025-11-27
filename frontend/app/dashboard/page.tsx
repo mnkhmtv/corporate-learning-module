@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Plus, BookOpen, Clock } from "lucide-react"
-import { format } from "date-fns"
+import { format, parseISO } from "date-fns"
 import { ru } from "date-fns/locale"
 
 export default function DashboardPage() {
@@ -19,8 +19,8 @@ export default function DashboardPage() {
 
   if (!user) return null
 
-  const activeLearnings = learnings.filter(l => l.status === 'active')
-  const completedLearnings = learnings.filter(l => l.status === 'completed')
+  const activeLearnings = (learnings || []).filter(l => l.status === 'active')
+  const completedLearnings = (learnings || []).filter(l => l.status === 'completed')
 
   return (
     <div className="space-y-8">
@@ -52,11 +52,11 @@ export default function DashboardPage() {
                     <CardTitle className="text-xl">{learning.topic}</CardTitle>
                     <Badge variant="default">В процессе</Badge>
                   </div>
-                  <CardDescription>Наставник: {learning.mentorName}</CardDescription>
+                  <CardDescription>Наставник: {learning?.mentorName}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="text-sm text-slate-500 mb-4">
-                    Начало: {format(new Date(learning.startDate), 'd MMMM yyyy', { locale: ru })}
+                    Начало: {learning.startDate && format(parseISO(learning.startDate), 'd MMMM yyyy', { locale: ru })}
                   </div>
                   <Button className="w-full" asChild>
                     <Link href={`/dashboard/learning/${learning.id}`}>
@@ -68,7 +68,7 @@ export default function DashboardPage() {
             ))}
           </div>
         ) : (
-          <Card className="bg-slate-50 border-dashed">
+          <Card className="bg-[#F2F3F7] border-dashed">
             <CardContent className="flex flex-col items-center justify-center py-8 text-center">
               <p className="text-slate-500 mb-4">У вас пока нет активных обучений</p>
               <Button variant="outline" asChild>
@@ -86,13 +86,13 @@ export default function DashboardPage() {
           История заявок
         </h2>
         <div className="space-y-4">
-          {requests.map((request) => (
+          {(requests || []).map((request) => (
             <Card key={request.id}>
               <CardContent className="flex items-center justify-between p-4">
                 <div>
                   <h3 className="font-medium">{request.topic}</h3>
                   <p className="text-sm text-slate-500">
-                    Создана: {format(new Date(request.createdAt), 'd MMM yyyy', { locale: ru })}
+                    Создана: {request.createdAt && format(parseISO(request.createdAt), 'd MMM yyyy', { locale: ru })}
                   </p>
                 </div>
                 <div className="flex items-center gap-4">
@@ -116,7 +116,7 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
           ))}
-          {requests.length === 0 && (
+          {(!requests || requests.length === 0) && (
             <p className="text-slate-500 text-sm">История заявок пуста</p>
           )}
         </div>
@@ -128,12 +128,12 @@ export default function DashboardPage() {
            <h2 className="text-lg font-semibold mb-4">Завершенные обучения</h2>
            <div className="space-y-4">
              {completedLearnings.map((learning) => (
-               <Card key={learning.id} className="bg-slate-50">
+               <Card key={learning.id} className="bg-[#F2F3F7]">
                  <CardContent className="flex items-center justify-between p-4">
                    <div>
                      <h3 className="font-medium text-slate-700">{learning.topic}</h3>
                      <p className="text-sm text-slate-500">
-                       Наставник: {learning.mentorName}
+                       Наставник: {learning?.mentorName}
                      </p>
                    </div>
                    <div className="flex items-center gap-2">

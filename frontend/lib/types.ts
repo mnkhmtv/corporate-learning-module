@@ -15,6 +15,7 @@ export interface User {
 export interface TrainingRequest {
   id: string;
   userId: string;
+  user: User;
   topic: string;
   description: string;
   status: RequestStatus;

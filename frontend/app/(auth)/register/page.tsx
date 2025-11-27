@@ -36,9 +36,10 @@ export default function RegisterPage() {
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="name">ФИО</Label>
+            <Label htmlFor="name">Ваше имя</Label>
             <Input
               id="name"
+              placeholder="Введите ваше имя"
               value={formData.name}
               onChange={(e) => setFormData({...formData, name: e.target.value})}
               required
@@ -49,6 +50,7 @@ export default function RegisterPage() {
             <Input
               id="email"
               type="email"
+              placeholder="name@mts.ru"
               value={formData.email}
               onChange={(e) => setFormData({...formData, email: e.target.value})}
               required
@@ -59,6 +61,7 @@ export default function RegisterPage() {
               <Label htmlFor="jobTitle">Должность</Label>
               <Input
                 id="jobTitle"
+                placeholder="Разработчик"
                 value={formData.jobTitle}
                 onChange={(e) => setFormData({...formData, jobTitle: e.target.value})}
                 required
@@ -79,6 +82,7 @@ export default function RegisterPage() {
             <Input
               id="password"
               type="password"
+              placeholder="**********"
               value={formData.password}
               onChange={(e) => setFormData({...formData, password: e.target.value})}
               required

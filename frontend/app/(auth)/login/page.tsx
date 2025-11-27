@@ -13,15 +13,15 @@ export default function LoginPage() {
   const router = useRouter()
   const login = useStore((state) => state.login)
   const isLoading = useStore((state) => state.isLoading)
-  const [email, setEmail] = useState("user@skillbridge.com")
-  const [password, setPassword] = useState("password")
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
   const [error, setError] = useState("")
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
     
-    const success = await login(email)
+    const success = await login({ email, password })
     if (success) {
       const user = useStore.getState().user
       if (user?.role === 'admin') {
@@ -46,7 +46,7 @@ export default function LoginPage() {
             <Input
               id="email"
               type="email"
-              placeholder="name@company.com"
+              placeholder="name@mts.ru"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -57,6 +57,7 @@ export default function LoginPage() {
             <Input
               id="password"
               type="password"
+              placeholder="**********"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required

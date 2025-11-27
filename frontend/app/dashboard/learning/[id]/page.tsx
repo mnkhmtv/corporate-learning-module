@@ -99,7 +99,7 @@ export default function LearningPage({ params }: { params: Promise<{ id: string 
               {learning.status === 'active' ? 'В процессе' : 'Завершено'}
             </Badge>
             <span>•</span>
-            <span>Наставник: {learning.mentorName}</span>
+            <span>Наставник: {learning?.mentorName}</span>
           </div>
         </div>
       </div>
@@ -120,7 +120,7 @@ export default function LearningPage({ params }: { params: Promise<{ id: string 
                   onChange={(e) => setNewPlanItem(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleAddPlanItem()}
                 />
-                <Button onClick={handleAddPlanItem} size="icon">
+                <Button onClick={handleAddPlanItem} size="icon" variant="secondary">
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
@@ -130,7 +130,7 @@ export default function LearningPage({ params }: { params: Promise<{ id: string 
                   <p className="text-center text-slate-500 py-4">План пока пуст</p>
                 )}
                 {learning.plan?.map((item: LearningPlanItem) => (
-                  <div key={item.id} className="flex items-center gap-3 p-3 border rounded-md bg-slate-50">
+                  <div key={item.id} className="flex items-center gap-3 p-3 border rounded-xl bg-[#F2F3F7]">
                     <button 
                       onClick={() => togglePlanItem(item.id)}
                       className={cn(
@@ -177,7 +177,7 @@ export default function LearningPage({ params }: { params: Promise<{ id: string 
             <CardContent className="space-y-4">
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-bold">
-                  {learning.mentorName.charAt(0)}
+                  {learning?.mentorName?.charAt(0)}
                 </div>
                 <div>
                   <p className="font-medium">{learning.mentorName}</p>

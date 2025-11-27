@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ArrowLeft, User as UserIcon } from "lucide-react"
 import Link from "next/link"
-import { format } from "date-fns"
+import { format, parseISO } from "date-fns"
 import { ru } from "date-fns/locale"
 
 export default function AdminRequestPage({ params }: { params: Promise<{ id: string }> }) {
@@ -25,7 +25,7 @@ export default function AdminRequestPage({ params }: { params: Promise<{ id: str
     fetchMentors()
   }, [fetchAllRequests, fetchMentors])
 
-  const request = requests.find(r => r.id === id)
+  const request = (requests || []).find(r => r.id === id)
 
   if (!request) return <div>Загрузка...</div>
 
@@ -53,7 +53,7 @@ export default function AdminRequestPage({ params }: { params: Promise<{ id: str
               <div>
                 <CardTitle>{request.topic}</CardTitle>
                 <CardDescription>
-                  Создана: {format(new Date(request.createdAt), 'd MMMM yyyy', { locale: ru })}
+                  Создана: {request.createdAt && format(parseISO(request.createdAt), 'd MMMM yyyy', { locale: ru })}
                 </CardDescription>
               </div>
               <Badge variant={
@@ -74,15 +74,15 @@ export default function AdminRequestPage({ params }: { params: Promise<{ id: str
                   <UserIcon className="h-4 w-4 text-slate-500" />
                 </div>
                 <div>
-                  <p className="font-medium">User ID: {request.userId}</p>
-                  <p className="text-xs text-slate-500">Frontend Developer</p>
+                  <p className="font-medium">{request.user?.name}</p>
+                  <p className="text-xs text-slate-500">{request.user?.jobTitle}</p>
                 </div>
               </div>
             </div>
             
             <div>
               <h3 className="text-sm font-medium text-slate-500 mb-1">Описание и мотивация</h3>
-              <div className="p-4 bg-slate-50 rounded-md text-sm text-slate-700">
+              <div className="p-4 bg-[#F2F3F7] rounded-xl text-sm text-slate-700">
                 {request.description}
               </div>
             </div>
@@ -103,7 +103,7 @@ export default function AdminRequestPage({ params }: { params: Promise<{ id: str
                     <SelectValue placeholder="Выберите наставника" />
                   </SelectTrigger>
                   <SelectContent>
-                    {mentors.map((mentor) => (
+                    {(mentors || []).map((mentor) => (
                       <SelectItem key={mentor.id} value={mentor.id}>
                         <div className="flex flex-col items-start py-1">
                           <span className="font-medium">{mentor.name}</span>
@@ -118,14 +118,14 @@ export default function AdminRequestPage({ params }: { params: Promise<{ id: str
               </div>
               
               {selectedMentor && (
-                <div className="p-4 bg-blue-50 text-blue-900 rounded-md text-sm">
+                <div className="p-4 bg-blue-50 text-blue-900 rounded-xl text-sm">
                   <p className="font-medium">Выбрано:</p>
                   <p>{mentors.find(m => m.id === selectedMentor)?.name}</p>
                   <p className="text-xs mt-1 opacity-80">После назначения сотруднику придет уведомление, и создастся процесс обучения.</p>
                 </div>
               )}
             </CardContent>
-            <CardFooter className="flex justify-end gap-3 bg-slate-50 border-t p-4">
+            <CardFooter className="flex justify-end gap-3 bg-[#F2F3F7] border-t p-4">
               <Button variant="outline" asChild>
                 <Link href="/admin">Отмена</Link>
               </Button>

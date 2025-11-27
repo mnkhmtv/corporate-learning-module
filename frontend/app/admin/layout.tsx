@@ -20,21 +20,19 @@ export default function AdminLayout({
 }) {
   const router = useRouter()
   const pathname = usePathname()
-  const user = useStore((state) => state.user)
-  const logout = useStore((state) => state.logout)
+  const { user, isAuthLoading, logout } = useStore()
 
   useEffect(() => {
-    if (!user) {
+    if (!isAuthLoading && (!user || user.role !== 'admin')) {
       router.push('/login')
-    } else if (user.role !== 'admin') {
-      router.push('/dashboard')
     }
-  }, [user, router])
-
-  if (!user || user.role !== 'admin') {
+  }, [user, isAuthLoading, router])
+  
+  if (isAuthLoading || !user) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-slate-900" />
+      <div className="flex h-screen items-center justify-center">
+        {/* You can replace this with a proper loader/spinner component */}
+        <p>Loading...</p>
       </div>
     )
   }
@@ -45,11 +43,11 @@ export default function AdminLayout({
   ]
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-[#F2F3F7]">
       {/* Sidebar */}
       <div className="fixed inset-y-0 left-0 w-64 bg-slate-900 text-white border-r border-slate-800 p-4 flex flex-col">
         <div className="flex items-center gap-2 px-2 mb-8">
-          <div className="h-8 w-8 bg-white rounded-lg flex items-center justify-center text-slate-900 font-bold">
+          <div className="h-8 w-8 bg-[#9B93FF] rounded-lg flex items-center justify-center text-white font-bold">
             SB
           </div>
           <span className="text-xl font-bold">Admin Panel</span>
@@ -63,7 +61,7 @@ export default function AdminLayout({
                 key={item.name}
                 href={item.href}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors",
+                  "flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-xl transition-colors",
                   isActive 
                     ? "bg-slate-800 text-white" 
                     : "text-slate-400 hover:bg-slate-800 hover:text-white"

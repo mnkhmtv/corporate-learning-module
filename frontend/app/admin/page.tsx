@@ -28,9 +28,9 @@ export default function AdminDashboardPage() {
       {/* New Requests */}
       <section>
         <h2 className="text-lg font-semibold mb-4">Новые заявки ({pendingRequests.length})</h2>
-        <div className="bg-white rounded-md border border-slate-200 overflow-hidden">
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
           <table className="w-full text-sm text-left">
-            <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
+            <thead className="bg-[#F2F3F7] text-slate-500 border-b border-slate-200">
               <tr>
                 <th className="px-4 py-3 font-medium">Сотрудник</th>
                 <th className="px-4 py-3 font-medium">Тема</th>
@@ -48,10 +48,10 @@ export default function AdminDashboardPage() {
                 </tr>
               ) : (
                 pendingRequests.map((request) => (
-                  <tr key={request.id} className="hover:bg-slate-50/50">
+                  <tr key={request.id} className="hover:bg-[#F2F3F7]/50">
                     <td className="px-4 py-3">
-                      <div className="font-medium">User ID: {request.userId}</div>
-                      {/* Ideally we would join with user table, but mock service simplifies this */}
+                      <div className="font-medium">{request.user?.name}</div>
+                      <div className="text-sm text-slate-500">{request.user?.jobTitle}</div>
                     </td>
                     <td className="px-4 py-3">{request.topic}</td>
                     <td className="px-4 py-3 text-slate-500">
@@ -78,9 +78,9 @@ export default function AdminDashboardPage() {
       {/* History */}
       <section>
         <h2 className="text-lg font-semibold mb-4">История заявок</h2>
-        <div className="bg-white rounded-md border border-slate-200 overflow-hidden">
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
           <table className="w-full text-sm text-left">
-            <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
+            <thead className="bg-[#F2F3F7] text-slate-500 border-b border-slate-200">
               <tr>
                 <th className="px-4 py-3 font-medium">Сотрудник</th>
                 <th className="px-4 py-3 font-medium">Тема</th>
@@ -91,9 +91,10 @@ export default function AdminDashboardPage() {
             </thead>
             <tbody className="divide-y divide-slate-100">
                {otherRequests.map((request) => (
-                  <tr key={request.id} className="hover:bg-slate-50/50">
+                  <tr key={request.id} className="hover:bg-[#F2F3F7]/50">
                     <td className="px-4 py-3">
-                       <div className="font-medium">User ID: {request.userId}</div>
+                      <div className="font-medium">{request.user?.name}</div>
+                      <div className="text-sm text-slate-500">{request.user?.jobTitle}</div>
                     </td>
                     <td className="px-4 py-3">{request.topic}</td>
                     <td className="px-4 py-3 text-slate-500">
