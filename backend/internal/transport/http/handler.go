@@ -104,6 +104,7 @@ func (h *Handler) InitRoutes(router *gin.Engine, logger *slog.Logger, jwtSecret 
 			learnings.POST("", h.learningHandler.CreateLearning)
 			learnings.GET("/:id", h.learningHandler.GetLearningByID)
 			learnings.PUT("/:id", middleware.AdminOnly(), h.learningHandler.UpdateLearning)
+			learnings.POST("/:id/assign", middleware.AdminOnly(), h.learningHandler.AssignMentor)
 			learnings.PUT("/:id/plan", h.learningHandler.UpdatePlan)
 			learnings.PUT("/:id/notes", h.learningHandler.UpdateNotes)
 			learnings.POST("/:id/complete", h.learningHandler.CompleteLearning)

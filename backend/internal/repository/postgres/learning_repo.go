@@ -232,8 +232,31 @@ func (r *LearningRepository) GetAll(ctx context.Context) ([]*domain.LearningProc
 	return r.scanLearningProcesses(rows)
 }
 
-// UpdatePlan, UpdateNotes, Update, Complete - остаются без изменений
-// (они не возвращают данные напрямую, только обновляют)
+// UpdateMentor updates the mentor for a learning process
+func (r *LearningRepository) UpdateMentor(ctx context.Context, learningID, mentorID string) error {
+	start := time.Now()
+
+	query := `
+		UPDATE learning_processes
+		SET mentorId = $2
+		WHERE id = $1
+		RETURNING updatedAt
+	`
+
+	var updatedAt time.Time
+	err := r.pool.QueryRow(ctx, query, learningID, mentorID).Scan(&updatedAt)
+
+	metrics.RecordDbQuery("learning.UpdateMentor", time.Since(start), err)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.ErrLearningNotFound
+		}
+		return fmt.Errorf("failed to update mentor: %w", err)
+	}
+
+	return nil
+}
 
 // UpdatePlan updates the learning plan
 func (r *LearningRepository) UpdatePlan(ctx context.Context, id string, plan []domain.LearningPlanItem) error {

@@ -202,6 +202,30 @@ func (h *LearningHandler) UpdateNotes(c *gin.Context) {
 	c.JSON(http.StatusOK, responseDTO)
 }
 
+// AssignMentor handles POST /api/learnings/:id/assign (admin only)
+func (h *LearningHandler) AssignMentor(c *gin.Context) {
+	learningID := c.Param("id")
+
+	var req dto.AssignMentorDTO
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	learning, err := h.learningService.AssignMentor(
+		c.Request.Context(),
+		learningID,
+		req.MentorID,
+	)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	responseDTO := dto.ToLearningResponseDTO(learning)
+	c.JSON(http.StatusOK, responseDTO)
+}
+
 func (h *LearningHandler) CompleteLearning(c *gin.Context) {
 	learningID := c.Param("id")
 	userID, _ := c.Get("userID")

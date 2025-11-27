@@ -172,6 +172,54 @@ func (s *LearningService) UpdateNotes(ctx context.Context, id string, notes stri
 	return s.learningRepo.GetByID(ctx, id)
 }
 
+// AssignMentor assigns a mentor to a learning process (admin only)
+func (s *LearningService) AssignMentor(ctx context.Context, learningID, mentorID string) (*domain.LearningProcess, error) {
+	// Get existing learning
+	learning, err := s.learningRepo.GetByID(ctx, learningID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get old mentor to decrement workload
+	oldMentor, err := s.mentorRepo.GetByID(ctx, learning.MentorID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get old mentor: %w", err)
+	}
+
+	// Get new mentor to increment workload
+	newMentor, err := s.mentorRepo.GetByID(ctx, mentorID)
+	if err != nil {
+		return nil, fmt.Errorf("mentor not found: %w", err)
+	}
+
+	// Check if new mentor workload is not too high
+	if newMentor.Workload >= 5 {
+		return nil, fmt.Errorf("mentor has reached maximum workload")
+	}
+
+	// Update mentor workloads
+	if err := s.mentorRepo.UpdateWorkload(ctx, oldMentor.ID, oldMentor.Workload-1); err != nil {
+		return nil, fmt.Errorf("failed to update old mentor workload: %w", err)
+	}
+
+	if err := s.mentorRepo.UpdateWorkload(ctx, newMentor.ID, newMentor.Workload+1); err != nil {
+		// Rollback old mentor workload
+		_ = s.mentorRepo.UpdateWorkload(ctx, oldMentor.ID, oldMentor.Workload)
+		return nil, fmt.Errorf("failed to update new mentor workload: %w", err)
+	}
+
+	// Update learning process
+	if err := s.learningRepo.UpdateMentor(ctx, learningID, mentorID); err != nil {
+		// Rollback workload changes
+		_ = s.mentorRepo.UpdateWorkload(ctx, oldMentor.ID, oldMentor.Workload)
+		_ = s.mentorRepo.UpdateWorkload(ctx, newMentor.ID, newMentor.Workload)
+		return nil, fmt.Errorf("failed to update learning mentor: %w", err)
+	}
+
+	// Reload to get updated data with JOINs
+	return s.learningRepo.GetByID(ctx, learningID)
+}
+
 // CompleteLearning marks learning as completed with feedback
 func (s *LearningService) CompleteLearning(ctx context.Context, id string, rating int, comment string) (*domain.LearningProcess, error) {
 	learning, err := s.learningRepo.GetByID(ctx, id)

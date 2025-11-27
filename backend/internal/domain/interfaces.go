@@ -43,4 +43,5 @@ type LearningRepository interface {
 	UpdateNotes(ctx context.Context, id string, notes string) error
 	Update(ctx context.Context, id string, learning *LearningProcess) error
 	Complete(ctx context.Context, id string, feedback Feedback) error
+	UpdateMentor(ctx context.Context, learningID, mentorID string) error
 }
