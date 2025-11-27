@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/mnkhmtv/corporate-learning-module/backend/internal/service"
+	"github.com/mnkhmtv/corporate-learning-module/backend/internal/transport/http/dto"
 
 	"github.com/gin-gonic/gin"
 )
@@ -32,7 +33,6 @@ type UpdateRequestDTO struct {
 	Description string `json:"description" binding:"required"`
 }
 
-// CreateRequest handles POST /api/requests
 func (h *RequestHandler) CreateRequest(c *gin.Context) {
 	userID, _ := c.Get("userID")
 
@@ -53,10 +53,11 @@ func (h *RequestHandler) CreateRequest(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, request)
+	// Convert to response DTO
+	responseDTO := dto.ToRequestResponseDTO(request)
+	c.JSON(http.StatusCreated, responseDTO)
 }
 
-// GetAllRequests handles GET /api/requests (admin only)
 func (h *RequestHandler) GetAllRequests(c *gin.Context) {
 	status := c.Query("status")
 	var statusPtr *string
@@ -70,10 +71,11 @@ func (h *RequestHandler) GetAllRequests(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"requests": requests})
+	// Convert to response DTOs
+	responseDTOs := dto.ToRequestResponseDTOs(requests)
+	c.JSON(http.StatusOK, gin.H{"requests": responseDTOs})
 }
 
-// GetMyRequests handles GET /api/requests/my
 func (h *RequestHandler) GetMyRequests(c *gin.Context) {
 	userID, _ := c.Get("userID")
 
@@ -83,10 +85,11 @@ func (h *RequestHandler) GetMyRequests(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"requests": requests})
+	// Convert to response DTOs
+	responseDTOs := dto.ToRequestResponseDTOs(requests)
+	c.JSON(http.StatusOK, gin.H{"requests": responseDTOs})
 }
 
-// GetRequestByID handles GET /api/requests/:id
 func (h *RequestHandler) GetRequestByID(c *gin.Context) {
 	requestID := c.Param("id")
 	userID, _ := c.Get("userID")
@@ -104,10 +107,11 @@ func (h *RequestHandler) GetRequestByID(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, request)
+	// Convert to response DTO
+	responseDTO := dto.ToRequestResponseDTO(request)
+	c.JSON(http.StatusOK, responseDTO)
 }
 
-// UpdateRequest handles PUT /api/requests/:id
 func (h *RequestHandler) UpdateRequest(c *gin.Context) {
 	requestID := c.Param("id")
 	userID, _ := c.Get("userID")
@@ -143,5 +147,7 @@ func (h *RequestHandler) UpdateRequest(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, request)
+	// Convert to response DTO
+	responseDTO := dto.ToRequestResponseDTO(request)
+	c.JSON(http.StatusOK, responseDTO)
 }

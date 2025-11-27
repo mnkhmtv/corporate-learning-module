@@ -36,7 +36,6 @@ type UpdateMentorDTO struct {
 	Telegram   string `json:"telegram"`
 }
 
-// GetAllMentors handles GET /api/mentors
 func (h *MentorHandler) GetAllMentors(c *gin.Context) {
 	// Check if filtering by availability
 	availableOnly := c.Query("available") == "true"
@@ -58,7 +57,6 @@ func (h *MentorHandler) GetAllMentors(c *gin.Context) {
 	c.JSON(http.StatusOK, mentors)
 }
 
-// GetMentorByID handles GET /api/mentors/:id
 func (h *MentorHandler) GetMentorByID(c *gin.Context) {
 	mentorID := c.Param("id")
 
@@ -71,7 +69,6 @@ func (h *MentorHandler) GetMentorByID(c *gin.Context) {
 	c.JSON(http.StatusOK, mentor)
 }
 
-// CreateMentor handles POST /api/mentors (admin only)
 func (h *MentorHandler) CreateMentor(c *gin.Context) {
 	var req CreateMentorDTO
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -92,7 +89,6 @@ func (h *MentorHandler) CreateMentor(c *gin.Context) {
 	c.JSON(http.StatusCreated, mentor)
 }
 
-// UpdateMentor handles PUT /api/mentors/:id (admin only)
 func (h *MentorHandler) UpdateMentor(c *gin.Context) {
 	id := c.Param("id")
 

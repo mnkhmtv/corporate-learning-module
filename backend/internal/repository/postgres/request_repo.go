@@ -22,7 +22,7 @@ func NewRequestRepository(pool *pgxpool.Pool) *RequestRepository {
 }
 
 // Create inserts a new training request
-func (r *RequestRepository) Create(ctx context.Context, req *domain.TrainingRequest) error {
+func (r *RequestRepository) Create(ctx context.Context, request *domain.TrainingRequest) error {
 	start := time.Now()
 
 	query := `
@@ -33,36 +33,42 @@ func (r *RequestRepository) Create(ctx context.Context, req *domain.TrainingRequ
 
 	err := r.pool.QueryRow(
 		ctx, query,
-		req.UserID, req.Topic, req.Description, req.Status,
-	).Scan(&req.ID, &req.CreatedAt, &req.UpdatedAt)
+		request.UserID, request.Topic, request.Description, request.Status,
+	).Scan(&request.ID, &request.CreatedAt, &request.UpdatedAt)
 
 	metrics.RecordDbQuery("requests.Create", time.Since(start), err)
 
 	if err == nil {
-		metrics.TrainingRequestsTotal.WithLabelValues(string(req.Status)).Inc()
+		metrics.TrainingRequestsTotal.WithLabelValues(string(request.Status)).Inc()
 	}
 
 	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
+		return fmt.Errorf("failed to create training request: %w", err)
 	}
 
 	return nil
 }
 
-// GetByID retrieves a request by ID
+// GetByID retrieves a training request by ID with user data
 func (r *RequestRepository) GetByID(ctx context.Context, id string) (*domain.TrainingRequest, error) {
 	start := time.Now()
 
 	query := `
-		SELECT id, userId, topic, description, status, createdAt, updatedAt
-		FROM training_requests
-		WHERE id = $1
+		SELECT 
+			r.id, r.userId, r.topic, r.description, r.status, r.createdAt, r.updatedAt,
+			u.name AS userName,
+			u.jobTitle AS userJobTitle,
+			u.telegram AS userTelegram
+		FROM training_requests r
+		INNER JOIN users u ON r.userId = u.id
+		WHERE r.id = $1
 	`
 
-	var req domain.TrainingRequest
+	var request domain.TrainingRequest
 	err := r.pool.QueryRow(ctx, query, id).Scan(
-		&req.ID, &req.UserID, &req.Topic, &req.Description,
-		&req.Status, &req.CreatedAt, &req.UpdatedAt,
+		&request.ID, &request.UserID, &request.Topic, &request.Description,
+		&request.Status, &request.CreatedAt, &request.UpdatedAt,
+		&request.UserName, &request.UserJobTitle, &request.UserTelegram,
 	)
 
 	metrics.RecordDbQuery("requests.GetByID", time.Since(start), err)
@@ -71,21 +77,26 @@ func (r *RequestRepository) GetByID(ctx context.Context, id string) (*domain.Tra
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, domain.ErrRequestNotFound
 		}
-		return nil, fmt.Errorf("failed to get request: %w", err)
+		return nil, fmt.Errorf("failed to get training request: %w", err)
 	}
 
-	return &req, nil
+	return &request, nil
 }
 
-// GetByUserID retrieves all requests for a specific user
+// GetByUserID retrieves all training requests for a user
 func (r *RequestRepository) GetByUserID(ctx context.Context, userID string) ([]*domain.TrainingRequest, error) {
 	start := time.Now()
 
 	query := `
-		SELECT id, userId, topic, description, status, createdAt, updatedAt
-		FROM training_requests
-		WHERE userId = $1
-		ORDER BY createdAt DESC
+		SELECT 
+			r.id, r.userId, r.topic, r.description, r.status, r.createdAt, r.updatedAt,
+			u.name AS userName,
+			u.jobTitle AS userJobTitle,
+			u.telegram AS userTelegram
+		FROM training_requests r
+		INNER JOIN users u ON r.userId = u.id
+		WHERE r.userId = $1
+		ORDER BY r.createdAt DESC
 	`
 
 	rows, err := r.pool.Query(ctx, query, userID)
@@ -93,42 +104,42 @@ func (r *RequestRepository) GetByUserID(ctx context.Context, userID string) ([]*
 	metrics.RecordDbQuery("requests.GetByUserID", time.Since(start), err)
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to get requests by user: %w", err)
+		return nil, fmt.Errorf("failed to get user training requests: %w", err)
 	}
 	defer rows.Close()
 
 	return r.scanRequests(rows)
 }
 
-// GetAll retrieves all requests with optional status filter
+// GetAll retrieves all training requests with optional status filter
 func (r *RequestRepository) GetAll(ctx context.Context, status *string) ([]*domain.TrainingRequest, error) {
 	start := time.Now()
 
-	var query string
-	var args []interface{}
+	query := `
+		SELECT 
+			r.id, r.userId, r.topic, r.description, r.status, r.createdAt, r.updatedAt,
+			u.name AS userName,
+			u.jobTitle AS userJobTitle,
+			u.telegram AS userTelegram
+		FROM training_requests r
+		INNER JOIN users u ON r.userId = u.id
+	`
+
+	var rows pgx.Rows
+	var err error
 
 	if status != nil {
-		query = `
-			SELECT id, userId, topic, description, status, createdAt, updatedAt
-			FROM training_requests
-			WHERE status = $1
-			ORDER BY createdAt DESC
-		`
-		args = append(args, *status)
+		query += " WHERE r.status = $1 ORDER BY r.createdAt DESC"
+		rows, err = r.pool.Query(ctx, query, *status)
 	} else {
-		query = `
-			SELECT id, userId, topic, description, status, createdAt, updatedAt
-			FROM training_requests
-			ORDER BY createdAt DESC
-		`
+		query += " ORDER BY r.createdAt DESC"
+		rows, err = r.pool.Query(ctx, query)
 	}
-
-	rows, err := r.pool.Query(ctx, query, args...)
 
 	metrics.RecordDbQuery("requests.GetAll", time.Since(start), err)
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to get all requests: %w", err)
+		return nil, fmt.Errorf("failed to get all training requests: %w", err)
 	}
 	defer rows.Close()
 
@@ -162,7 +173,7 @@ func (r *RequestRepository) Update(ctx context.Context, req *domain.TrainingRequ
 	return nil
 }
 
-// UpdateStatus updates the status of a request
+// UpdateStatus updates the status of a training request
 func (r *RequestRepository) UpdateStatus(ctx context.Context, id, status string) error {
 	start := time.Now()
 
@@ -178,10 +189,6 @@ func (r *RequestRepository) UpdateStatus(ctx context.Context, id, status string)
 
 	metrics.RecordDbQuery("requests.UpdateStatus", time.Since(start), err)
 
-	if err == nil {
-		metrics.TrainingRequestsTotal.WithLabelValues(status).Inc()
-	}
-
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return domain.ErrRequestNotFound
@@ -192,21 +199,21 @@ func (r *RequestRepository) UpdateStatus(ctx context.Context, id, status string)
 	return nil
 }
 
-// scanRequests is a helper to scan multiple rows into TrainingRequest slice
+// scanRequests is a helper to scan multiple rows
 func (r *RequestRepository) scanRequests(rows pgx.Rows) ([]*domain.TrainingRequest, error) {
-
 	var requests []*domain.TrainingRequest
 
 	for rows.Next() {
-		var req domain.TrainingRequest
+		var request domain.TrainingRequest
 		err := rows.Scan(
-			&req.ID, &req.UserID, &req.Topic, &req.Description,
-			&req.Status, &req.CreatedAt, &req.UpdatedAt,
+			&request.ID, &request.UserID, &request.Topic, &request.Description,
+			&request.Status, &request.CreatedAt, &request.UpdatedAt,
+			&request.UserName, &request.UserJobTitle, &request.UserTelegram,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("failed to scan request: %w", err)
+			return nil, fmt.Errorf("failed to scan training request: %w", err)
 		}
-		requests = append(requests, &req)
+		requests = append(requests, &request)
 	}
 
 	if err := rows.Err(); err != nil {

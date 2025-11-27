@@ -43,14 +43,13 @@ func (s *LearningService) GetLearningByID(ctx context.Context, id string) (*doma
 
 // UpdateLearning updates full learning process (admin only)
 func (s *LearningService) UpdateLearning(ctx context.Context, id string, topic string, status domain.LearningStatus, plan []domain.LearningPlanItem, feedback *domain.Feedback, notes *string) (*domain.LearningProcess, error) {
-	_, err := s.learningRepo.GetByID(ctx, id) // ← Убрали переменную learning
+	_, err := s.learningRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
 	// Create learning object for update
 	learning := &domain.LearningProcess{
-		Topic:    topic,
 		Status:   status,
 		Plan:     plan,
 		Feedback: feedback,

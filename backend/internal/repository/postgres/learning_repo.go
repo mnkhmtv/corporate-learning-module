@@ -57,7 +57,7 @@ func (r *LearningRepository) Create(ctx context.Context, learning *domain.Learni
 	return nil
 }
 
-// GetByID retrieves a learning process by ID with JOIN to mentors and requests
+// GetByID retrieves a learning process by ID with JOINs
 func (r *LearningRepository) GetByID(ctx context.Context, id string) (*domain.LearningProcess, error) {
 	start := time.Now()
 
@@ -67,13 +67,17 @@ func (r *LearningRepository) GetByID(ctx context.Context, id string) (*domain.Le
 			lp.status, lp.startDate, lp.endDate,
 			lp.plan, lp.feedback, lp.notes,
 			lp.createdAt, lp.updatedAt,
-			m.name AS mentorName, 
-			m.email AS mentorEmail, 
-			m.telegram AS mentorTg,
-			r.topic AS topic
+			r.topic AS requestTopic,
+			r.description AS requestDescription,
+			u.name AS userName,
+			m.name AS mentorName,
+			m.telegram AS mentorTelegram,
+			m.jobTitle AS mentorJobTitle,
+			m.experience AS mentorExperience
 		FROM learning_processes lp
-		INNER JOIN mentors m ON lp.mentorId = m.id
 		INNER JOIN training_requests r ON lp.requestId = r.id
+		INNER JOIN users u ON lp.userId = u.id
+		INNER JOIN mentors m ON lp.mentorId = m.id
 		WHERE lp.id = $1
 	`
 
@@ -86,8 +90,10 @@ func (r *LearningRepository) GetByID(ctx context.Context, id string) (*domain.Le
 		&learning.Status, &learning.StartDate, &learning.EndDate,
 		&planJSON, &feedbackJSON, &learning.Notes,
 		&learning.CreatedAt, &learning.UpdatedAt,
-		&learning.MentorName, &learning.MentorEmail, &learning.MentorTg,
-		&learning.Topic,
+		&learning.RequestTopic, &learning.RequestDescription,
+		&learning.UserName,
+		&learning.MentorName, &learning.MentorTelegram,
+		&learning.MentorJobTitle, &learning.MentorExperience,
 	)
 
 	metrics.RecordDbQuery("learning.GetByID", time.Since(start), err)
@@ -126,13 +132,17 @@ func (r *LearningRepository) GetByUserID(ctx context.Context, userID string) ([]
 			lp.status, lp.startDate, lp.endDate,
 			lp.plan, lp.feedback, lp.notes,
 			lp.createdAt, lp.updatedAt,
-			m.name AS mentorName, 
-			m.email AS mentorEmail, 
-			m.telegram AS mentorTg,
-			r.topic AS topic
+			r.topic AS requestTopic,
+			r.description AS requestDescription,
+			u.name AS userName,
+			m.name AS mentorName,
+			m.telegram AS mentorTelegram,
+			m.jobTitle AS mentorJobTitle,
+			m.experience AS mentorExperience
 		FROM learning_processes lp
-		INNER JOIN mentors m ON lp.mentorId = m.id
 		INNER JOIN training_requests r ON lp.requestId = r.id
+		INNER JOIN users u ON lp.userId = u.id
+		INNER JOIN mentors m ON lp.mentorId = m.id
 		WHERE lp.userId = $1
 		ORDER BY lp.createdAt DESC
 	`
@@ -159,13 +169,17 @@ func (r *LearningRepository) GetByMentorID(ctx context.Context, mentorID string)
 			lp.status, lp.startDate, lp.endDate,
 			lp.plan, lp.feedback, lp.notes,
 			lp.createdAt, lp.updatedAt,
-			m.name AS mentorName, 
-			m.email AS mentorEmail, 
-			m.telegram AS mentorTg,
-			r.topic AS topic
+			r.topic AS requestTopic,
+			r.description AS requestDescription,
+			u.name AS userName,
+			m.name AS mentorName,
+			m.telegram AS mentorTelegram,
+			m.jobTitle AS mentorJobTitle,
+			m.experience AS mentorExperience
 		FROM learning_processes lp
-		INNER JOIN mentors m ON lp.mentorId = m.id
 		INNER JOIN training_requests r ON lp.requestId = r.id
+		INNER JOIN users u ON lp.userId = u.id
+		INNER JOIN mentors m ON lp.mentorId = m.id
 		WHERE lp.mentorId = $1
 		ORDER BY lp.createdAt DESC
 	`
@@ -192,13 +206,17 @@ func (r *LearningRepository) GetAll(ctx context.Context) ([]*domain.LearningProc
 			lp.status, lp.startDate, lp.endDate,
 			lp.plan, lp.feedback, lp.notes,
 			lp.createdAt, lp.updatedAt,
-			m.name AS mentorName, 
-			m.email AS mentorEmail, 
-			m.telegram AS mentorTg,
-			r.topic AS topic
+			r.topic AS requestTopic,
+			r.description AS requestDescription,
+			u.name AS userName,
+			m.name AS mentorName,
+			m.telegram AS mentorTelegram,
+			m.jobTitle AS mentorJobTitle,
+			m.experience AS mentorExperience
 		FROM learning_processes lp
-		INNER JOIN mentors m ON lp.mentorId = m.id
 		INNER JOIN training_requests r ON lp.requestId = r.id
+		INNER JOIN users u ON lp.userId = u.id
+		INNER JOIN mentors m ON lp.mentorId = m.id
 		ORDER BY lp.createdAt DESC
 	`
 
@@ -213,6 +231,9 @@ func (r *LearningRepository) GetAll(ctx context.Context) ([]*domain.LearningProc
 
 	return r.scanLearningProcesses(rows)
 }
+
+// UpdatePlan, UpdateNotes, Update, Complete - остаются без изменений
+// (они не возвращают данные напрямую, только обновляют)
 
 // UpdatePlan updates the learning plan
 func (r *LearningRepository) UpdatePlan(ctx context.Context, id string, plan []domain.LearningPlanItem) error {
@@ -375,8 +396,10 @@ func (r *LearningRepository) scanLearningProcesses(rows pgx.Rows) ([]*domain.Lea
 			&learning.Status, &learning.StartDate, &learning.EndDate,
 			&planJSON, &feedbackJSON, &learning.Notes,
 			&learning.CreatedAt, &learning.UpdatedAt,
-			&learning.MentorName, &learning.MentorEmail, &learning.MentorTg,
-			&learning.Topic,
+			&learning.RequestTopic, &learning.RequestDescription,
+			&learning.UserName,
+			&learning.MentorName, &learning.MentorTelegram,
+			&learning.MentorJobTitle, &learning.MentorExperience,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan learning process: %w", err)

@@ -21,28 +21,26 @@ type Feedback struct {
 
 // LearningProcess represents an active or completed learning session
 type LearningProcess struct {
-	ID        string `json:"id"`
-	RequestID string `json:"requestId"`
-	UserID    string `json:"userId"`
-	MentorID  string `json:"mentorId"`
+	ID        string             `json:"id"`
+	RequestID string             `json:"requestId"`
+	UserID    string             `json:"userId"`
+	MentorID  string             `json:"mentorId"`
+	Status    LearningStatus     `json:"status"`
+	StartDate time.Time          `json:"startDate"`
+	EndDate   *time.Time         `json:"endDate,omitempty"`
+	Plan      []LearningPlanItem `json:"plan"`
+	Feedback  *Feedback          `json:"feedback,omitempty"`
+	Notes     *string            `json:"notes,omitempty"`
+	CreatedAt time.Time          `json:"createdAt"`
+	UpdatedAt time.Time          `json:"updatedAt"`
 
-	// JOIN fields
-	MentorName  string `json:"mentorName"`
-	MentorEmail string `json:"mentorEmail"`
-	MentorTg    string `json:"mentorTg"`
-	Topic       string `json:"topic"`
-
-	Status    LearningStatus `json:"status"`
-	StartDate time.Time      `json:"startDate"`
-	EndDate   *time.Time     `json:"endDate,omitempty"`
-
-	Plan     []LearningPlanItem `json:"plan"`
-	Feedback *Feedback          `json:"feedback,omitempty"`
-	Notes    *string            `json:"notes,omitempty"`
-
-	// Audit fields
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	RequestTopic       string  `json:"-"`
+	RequestDescription string  `json:"-"`
+	UserName           string  `json:"-"`
+	MentorName         string  `json:"-"`
+	MentorTelegram     *string `json:"-"`
+	MentorJobTitle     string  `json:"-"`
+	MentorExperience   *string `json:"-"`
 }
 
 // IsActive checks if learning process is ongoing
@@ -61,7 +59,6 @@ func (lp *LearningProcess) AddPlanItem(item LearningPlanItem) error {
 		return err
 	}
 	lp.Plan = append(lp.Plan, item)
-	lp.UpdatedAt = time.Now()
 	return nil
 }
 
@@ -73,7 +70,6 @@ func (lp *LearningProcess) UpdatePlanItem(id string, text string, completed bool
 				lp.Plan[i].Text = text
 			}
 			lp.Plan[i].Completed = completed
-			lp.UpdatedAt = time.Now()
 			return nil
 		}
 	}
@@ -85,7 +81,6 @@ func (lp *LearningProcess) TogglePlanItem(id string) error {
 	for i := range lp.Plan {
 		if lp.Plan[i].ID == id {
 			lp.Plan[i].Toggle()
-			lp.UpdatedAt = time.Now()
 			return nil
 		}
 	}
@@ -97,7 +92,6 @@ func (lp *LearningProcess) RemovePlanItem(id string) error {
 	for i, item := range lp.Plan {
 		if item.ID == id {
 			lp.Plan = append(lp.Plan[:i], lp.Plan[i+1:]...)
-			lp.UpdatedAt = time.Now()
 			return nil
 		}
 	}
@@ -162,13 +156,13 @@ func (lp *LearningProcess) GetCompletedItemsCount() int {
 	return count
 }
 
-// Validate validates feedback data
+// Validate feedback
 func (f *Feedback) Validate() error {
 	if f.Rating < 1 || f.Rating > 5 {
-		return ErrInvalidRating
+		return errors.New("rating must be between 1 and 5")
 	}
 	if f.Comment == "" {
-		return errors.New("feedback comment cannot be empty")
+		return errors.New("comment cannot be empty")
 	}
 	return nil
 }

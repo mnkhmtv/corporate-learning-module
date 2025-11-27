@@ -28,7 +28,6 @@ type UpdateUserDTO struct {
 	Telegram   *string `json:"telegram"`
 }
 
-// GetAllUsers handles GET /users (admin only)
 func (h *UserHandler) GetAllUsers(c *gin.Context) {
 	users, err := h.userService.GetAllUsers(c.Request.Context())
 	if err != nil {
@@ -39,7 +38,6 @@ func (h *UserHandler) GetAllUsers(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"users": users})
 }
 
-// GetMe handles GET /users/me
 func (h *UserHandler) GetMe(c *gin.Context) {
 	userID, _ := c.Get("userID")
 
@@ -52,7 +50,6 @@ func (h *UserHandler) GetMe(c *gin.Context) {
 	c.JSON(http.StatusOK, user)
 }
 
-// UpdateMe handles PUT /users/me
 func (h *UserHandler) UpdateMe(c *gin.Context) {
 	userID, _ := c.Get("userID")
 
@@ -75,7 +72,6 @@ func (h *UserHandler) UpdateMe(c *gin.Context) {
 	c.JSON(http.StatusOK, user)
 }
 
-// GetUserByID handles GET /users/:id (admin only)
 func (h *UserHandler) GetUserByID(c *gin.Context) {
 	id := c.Param("id")
 
@@ -88,7 +84,6 @@ func (h *UserHandler) GetUserByID(c *gin.Context) {
 	c.JSON(http.StatusOK, user)
 }
 
-// UpdateUserByID handles PUT /users/:id (admin only)
 func (h *UserHandler) UpdateUserByID(c *gin.Context) {
 	id := c.Param("id")
 

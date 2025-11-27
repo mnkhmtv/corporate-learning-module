@@ -19,7 +19,6 @@ func NewLearningHandler(learningService *service.LearningService) *LearningHandl
 	}
 }
 
-// GetAllLearnings handles GET /api/learnings (admin only)
 func (h *LearningHandler) GetAllLearnings(c *gin.Context) {
 	learnings, err := h.learningService.GetAllLearnings(c.Request.Context())
 	if err != nil {
@@ -27,10 +26,11 @@ func (h *LearningHandler) GetAllLearnings(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"learnings": learnings})
+	// Convert to response DTOs
+	responseDTOs := dto.ToLearningResponseDTOs(learnings)
+	c.JSON(http.StatusOK, gin.H{"learnings": responseDTOs})
 }
 
-// GetMyLearnings handles GET /api/learnings/my
 func (h *LearningHandler) GetMyLearnings(c *gin.Context) {
 	userID, _ := c.Get("userID")
 
@@ -40,10 +40,11 @@ func (h *LearningHandler) GetMyLearnings(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"learnings": learnings})
+	// Convert to response DTOs
+	responseDTOs := dto.ToLearningResponseDTOs(learnings)
+	c.JSON(http.StatusOK, gin.H{"learnings": responseDTOs})
 }
 
-// GetLearningByID handles GET /api/learnings/:id
 func (h *LearningHandler) GetLearningByID(c *gin.Context) {
 	learningID := c.Param("id")
 	userID, _ := c.Get("userID")
@@ -61,10 +62,11 @@ func (h *LearningHandler) GetLearningByID(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, learning)
+	// Convert to response DTO
+	responseDTO := dto.ToLearningResponseDTO(learning)
+	c.JSON(http.StatusOK, responseDTO)
 }
 
-// UpdateLearning handles PUT /api/learnings/:id (admin only)
 func (h *LearningHandler) UpdateLearning(c *gin.Context) {
 	learningID := c.Param("id")
 
@@ -100,10 +102,11 @@ func (h *LearningHandler) UpdateLearning(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, learning)
+	// Convert to response DTO
+	responseDTO := dto.ToLearningResponseDTO(learning)
+	c.JSON(http.StatusOK, responseDTO)
 }
 
-// UpdatePlan handles PUT /api/learnings/:id/plan
 func (h *LearningHandler) UpdatePlan(c *gin.Context) {
 	learningID := c.Param("id")
 	userID, _ := c.Get("userID")
@@ -135,10 +138,11 @@ func (h *LearningHandler) UpdatePlan(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, learning)
+	// Convert to response DTO
+	responseDTO := dto.ToLearningResponseDTO(learning)
+	c.JSON(http.StatusOK, responseDTO)
 }
 
-// UpdateNotes handles PUT /api/learnings/:id/notes
 func (h *LearningHandler) UpdateNotes(c *gin.Context) {
 	learningID := c.Param("id")
 	userID, _ := c.Get("userID")
@@ -168,10 +172,11 @@ func (h *LearningHandler) UpdateNotes(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, learning)
+	// Convert to response DTO
+	responseDTO := dto.ToLearningResponseDTO(learning)
+	c.JSON(http.StatusOK, responseDTO)
 }
 
-// CompleteLearning handles POST /api/learnings/:id/complete
 func (h *LearningHandler) CompleteLearning(c *gin.Context) {
 	learningID := c.Param("id")
 	userID, _ := c.Get("userID")
@@ -206,5 +211,7 @@ func (h *LearningHandler) CompleteLearning(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, learning)
+	// Convert to response DTO
+	responseDTO := dto.ToLearningResponseDTO(learning)
+	c.JSON(http.StatusOK, responseDTO)
 }
