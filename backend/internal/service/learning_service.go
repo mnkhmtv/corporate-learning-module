@@ -2,53 +2,152 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"time"
 
 	"github.com/mnkhmtv/corporate-learning-module/backend/internal/domain"
 )
 
 type LearningService struct {
 	learningRepo domain.LearningRepository
-	requestRepo  domain.RequestRepository
 	mentorRepo   domain.MentorRepository
-	mentorSvc    *MentorService
+	requestRepo  domain.RequestRepository
 }
 
 func NewLearningService(
 	learningRepo domain.LearningRepository,
-	requestRepo domain.RequestRepository,
 	mentorRepo domain.MentorRepository,
-	mentorSvc *MentorService,
+	requestRepo domain.RequestRepository,
 ) *LearningService {
 	return &LearningService{
 		learningRepo: learningRepo,
-		requestRepo:  requestRepo,
 		mentorRepo:   mentorRepo,
-		mentorSvc:    mentorSvc,
+		requestRepo:  requestRepo,
 	}
 }
 
-// AssignMentor creates a learning process by assigning a mentor to an approved request
-func (s *LearningService) AssignMentor(ctx context.Context, requestID, mentorID string) (*domain.LearningProcess, error) {
-	// Get and validate request
-	request, err := s.requestRepo.GetByID(ctx, requestID)
+// GetAllLearnings retrieves all learning processes (admin only)
+func (s *LearningService) GetAllLearnings(ctx context.Context) ([]*domain.LearningProcess, error) {
+	return s.learningRepo.GetAll(ctx)
+}
+
+// GetUserLearnings retrieves all learning processes for current user
+func (s *LearningService) GetUserLearnings(ctx context.Context, userID string) ([]*domain.LearningProcess, error) {
+	return s.learningRepo.GetByUserID(ctx, userID)
+}
+
+// GetLearningByID retrieves a learning process by ID
+func (s *LearningService) GetLearningByID(ctx context.Context, id string) (*domain.LearningProcess, error) {
+	return s.learningRepo.GetByID(ctx, id)
+}
+
+// UpdateLearning updates full learning process (admin only)
+func (s *LearningService) UpdateLearning(ctx context.Context, id string, topic string, status domain.LearningStatus, plan []domain.LearningPlanItem, feedback *domain.Feedback, notes *string) (*domain.LearningProcess, error) {
+	_, err := s.learningRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
-	if !request.IsApproved() {
-		return nil, errors.New("request must be approved before assigning mentor")
+	// Create learning object for update
+	learning := &domain.LearningProcess{
+		Status:   status,
+		Plan:     plan,
+		Feedback: feedback,
+		Notes:    notes,
+	}
+
+	// If status is completed and endDate is not set, it will be set in repository
+	if status == domain.LearningCompleted && learning.EndDate == nil {
+		now := time.Now()
+		learning.EndDate = &now
+	}
+
+	if err := s.learningRepo.Update(ctx, id, learning); err != nil {
+		return nil, fmt.Errorf("failed to update learning: %w", err)
+	}
+
+	// Reload to get updated data with JOINs
+	return s.learningRepo.GetByID(ctx, id)
+}
+
+// UpdatePlan updates learning plan
+func (s *LearningService) UpdatePlan(ctx context.Context, id string, plan []domain.LearningPlanItem) (*domain.LearningProcess, error) {
+	_, err := s.learningRepo.GetByID(ctx, id) // ← Убрали переменную learning
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate plan items
+	for _, item := range plan {
+		if err := item.Validate(); err != nil {
+			return nil, err
+		}
+	}
+
+	if err := s.learningRepo.UpdatePlan(ctx, id, plan); err != nil {
+		return nil, fmt.Errorf("failed to update plan: %w", err)
+	}
+
+	// Reload to get updated data
+	return s.learningRepo.GetByID(ctx, id)
+}
+
+// UpdateNotes updates learning notes
+func (s *LearningService) UpdateNotes(ctx context.Context, id string, notes string) (*domain.LearningProcess, error) {
+	_, err := s.learningRepo.GetByID(ctx, id) // ← Убрали переменную learning
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.learningRepo.UpdateNotes(ctx, id, notes); err != nil {
+		return nil, fmt.Errorf("failed to update notes: %w", err)
+	}
+
+	// Reload to get updated data
+	return s.learningRepo.GetByID(ctx, id)
+}
+
+// CompleteLearning marks learning as completed with feedback
+func (s *LearningService) CompleteLearning(ctx context.Context, id string, rating int, comment string) (*domain.LearningProcess, error) {
+	learning, err := s.learningRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate
+	if !learning.IsActive() {
+		return nil, domain.ErrLearningNotActive
+	}
+
+	feedback := domain.Feedback{
+		Rating:  rating,
+		Comment: comment,
+	}
+
+	if err := feedback.Validate(); err != nil {
+		return nil, err
+	}
+
+	if err := s.learningRepo.Complete(ctx, id, feedback); err != nil { // ← Теперь передаем feedback объект
+		return nil, fmt.Errorf("failed to complete learning: %w", err)
+	}
+
+	// Reload to get updated data
+	return s.learningRepo.GetByID(ctx, id)
+}
+
+// CreateLearningProcess creates a new learning process for a request
+func (s *LearningService) CreateLearningProcess(ctx context.Context, requestID, mentorID string) (*domain.LearningProcess, error) {
+	// Get request
+	request, err := s.requestRepo.GetByID(ctx, requestID)
+	if err != nil {
+		return nil, fmt.Errorf("request not found: %w", err)
 	}
 
 	// Get mentor
 	mentor, err := s.mentorRepo.GetByID(ctx, mentorID)
 	if err != nil {
-		return nil, err
-	}
-
-	if !mentor.CanTakeStudent() {
-		return nil, domain.ErrMentorNotAvailable
+		return nil, fmt.Errorf("mentor not found: %w", err)
 	}
 
 	// Create learning process
@@ -57,186 +156,25 @@ func (s *LearningService) AssignMentor(ctx context.Context, requestID, mentorID 
 		UserID:    request.UserID,
 		MentorID:  mentorID,
 		Status:    domain.LearningActive,
-		Plan:      []domain.LearningPlanItem{}, // Empty plan initially
+		StartDate: time.Now(),
+		Plan:      []domain.LearningPlanItem{},
+		Notes:     nil,
 	}
 
 	if err := s.learningRepo.Create(ctx, learning); err != nil {
 		return nil, fmt.Errorf("failed to create learning process: %w", err)
 	}
 
-	// Increment mentor workload
-	if err := s.mentorSvc.IncrementMentorWorkload(ctx, mentorID); err != nil {
+	// Update request status to approved
+	if err := s.requestRepo.UpdateStatus(ctx, requestID, "approved"); err != nil {
+		return nil, fmt.Errorf("failed to update request status: %w", err)
+	}
+
+	// Update mentor workload
+	if err := s.mentorRepo.UpdateWorkload(ctx, mentorID, mentor.Workload+1); err != nil {
 		return nil, fmt.Errorf("failed to update mentor workload: %w", err)
 	}
 
-	return learning, nil
-}
-
-// GetLearningByID retrieves a specific learning process
-func (s *LearningService) GetLearningByID(ctx context.Context, learningID string) (*domain.LearningProcess, error) {
-	return s.learningRepo.GetByID(ctx, learningID)
-}
-
-// GetUserLearnings retrieves all learning processes for a user
-func (s *LearningService) GetUserLearnings(ctx context.Context, userID string) ([]*domain.LearningProcess, error) {
-	return s.learningRepo.GetByUserID(ctx, userID)
-}
-
-// GetMentorLearnings retrieves all learning processes for a mentor
-func (s *LearningService) GetMentorLearnings(ctx context.Context, mentorID string) ([]*domain.LearningProcess, error) {
-	return s.learningRepo.GetByMentorID(ctx, mentorID)
-}
-
-// AddPlanItem adds a new item to the learning plan
-func (s *LearningService) AddPlanItem(ctx context.Context, learningID, text string) (*domain.LearningProcess, error) {
-	learning, err := s.learningRepo.GetByID(ctx, learningID)
-	if err != nil {
-		return nil, err
-	}
-
-	if !learning.IsActive() {
-		return nil, domain.ErrLearningNotActive
-	}
-
-	// Create new plan item
-	item, err := domain.NewLearningPlanItem(text)
-	if err != nil {
-		return nil, err
-	}
-
-	// Add to plan
-	if err := learning.AddPlanItem(*item); err != nil {
-		return nil, err
-	}
-
-	// Update in database
-	if err := s.learningRepo.UpdatePlan(ctx, learning.ID, learning.Plan); err != nil {
-		return nil, fmt.Errorf("failed to update plan: %w", err)
-	}
-
-	return learning, nil
-}
-
-// UpdatePlanItem updates an existing plan item
-func (s *LearningService) UpdatePlanItem(ctx context.Context, learningID, itemID, text string, completed bool) error {
-	learning, err := s.learningRepo.GetByID(ctx, learningID)
-	if err != nil {
-		return err
-	}
-
-	if err := learning.UpdatePlanItem(itemID, text, completed); err != nil {
-		return err
-	}
-
-	return s.learningRepo.UpdatePlan(ctx, learning.ID, learning.Plan)
-}
-
-// TogglePlanItem toggles completion status of a plan item
-func (s *LearningService) TogglePlanItem(ctx context.Context, learningID, itemID string) error {
-	learning, err := s.learningRepo.GetByID(ctx, learningID)
-	if err != nil {
-		return err
-	}
-
-	if err := learning.TogglePlanItem(itemID); err != nil {
-		return err
-	}
-
-	return s.learningRepo.UpdatePlan(ctx, learning.ID, learning.Plan)
-}
-
-// RemovePlanItem removes an item from the plan
-func (s *LearningService) RemovePlanItem(ctx context.Context, learningID, itemID string) error {
-	learning, err := s.learningRepo.GetByID(ctx, learningID)
-	if err != nil {
-		return err
-	}
-
-	if err := learning.RemovePlanItem(itemID); err != nil {
-		return err
-	}
-
-	return s.learningRepo.UpdatePlan(ctx, learning.ID, learning.Plan)
-}
-
-// CompleteLearning marks the learning process as completed with feedback
-func (s *LearningService) CompleteLearning(ctx context.Context, learningID string, rating int, comment string) error {
-	learning, err := s.learningRepo.GetByID(ctx, learningID)
-	if err != nil {
-		return err
-	}
-
-	// Validate and complete
-	if err := learning.Complete(rating, comment); err != nil {
-		return err
-	}
-
-	// Update in database
-	if err := s.learningRepo.Complete(ctx, learning.ID, rating, comment); err != nil {
-		return fmt.Errorf("failed to complete learning: %w", err)
-	}
-
-	// Decrement mentor workload
-	if err := s.mentorSvc.DecrementMentorWorkload(ctx, learning.MentorID); err != nil {
-		return fmt.Errorf("failed to update mentor workload: %w", err)
-	}
-
-	return nil
-}
-
-// GetLearningProgress calculates progress percentage
-func (s *LearningService) GetLearningProgress(ctx context.Context, learningID string) (float64, error) {
-	learning, err := s.learningRepo.GetByID(ctx, learningID)
-	if err != nil {
-		return 0, err
-	}
-
-	return learning.GetProgress(), nil
-}
-
-// UpdatePlan updates the entire learning plan
-func (s *LearningService) UpdatePlan(ctx context.Context, learningID string, planItems []domain.LearningPlanItem) (*domain.LearningProcess, error) {
-	learning, err := s.learningRepo.GetByID(ctx, learningID)
-	if err != nil {
-		return nil, err
-	}
-
-	if !learning.IsActive() {
-		return nil, domain.ErrLearningNotActive
-	}
-
-	// Validate plan elements
-	for _, item := range planItems {
-		if err := item.Validate(); err != nil {
-			return nil, err
-		}
-	}
-
-	// Update plan
-	if err := s.learningRepo.UpdatePlan(ctx, learning.ID, planItems); err != nil {
-		return nil, fmt.Errorf("failed to update plan: %w", err)
-	}
-
-	// Receive updated learning process
-	return s.learningRepo.GetByID(ctx, learningID)
-}
-
-// UpdateNotes updates notes for a learning process
-func (s *LearningService) UpdateNotes(ctx context.Context, learningID, notes string) (*domain.LearningProcess, error) {
-	learning, err := s.learningRepo.GetByID(ctx, learningID)
-	if err != nil {
-		return nil, err
-	}
-
-	if !learning.IsActive() {
-		return nil, domain.ErrLearningNotActive
-	}
-
-	// Обновить заметки
-	if err := s.learningRepo.UpdateNotes(ctx, learning.ID, notes); err != nil {
-		return nil, fmt.Errorf("failed to update notes: %w", err)
-	}
-
-	// Получить обновленный learning process
-	return s.learningRepo.GetByID(ctx, learningID)
+	// Reload to get full data with JOINs
+	return s.learningRepo.GetByID(ctx, learning.ID)
 }

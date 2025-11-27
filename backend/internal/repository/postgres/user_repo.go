@@ -46,6 +46,46 @@ func (r *UserRepository) Create(ctx context.Context, user *domain.User) error {
 	return nil
 }
 
+// GetAll retrieves all users (admin only)
+func (r *UserRepository) GetAll(ctx context.Context) ([]*domain.User, error) {
+	start := time.Now()
+
+	query := `
+		SELECT id, name, email, passwordHash, role, department, jobTitle, telegram, createdAt, updatedAt
+		FROM users
+		ORDER BY createdAt DESC
+	`
+
+	rows, err := r.pool.Query(ctx, query)
+
+	metrics.RecordDbQuery("users.GetAll", time.Since(start), err)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get all users: %w", err)
+	}
+	defer rows.Close()
+
+	var users []*domain.User
+	for rows.Next() {
+		var user domain.User
+		err := rows.Scan(
+			&user.ID, &user.Name, &user.Email, &user.PasswordHash, &user.Role,
+			&user.Department, &user.JobTitle, &user.Telegram,
+			&user.CreatedAt, &user.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan user: %w", err)
+		}
+		users = append(users, &user)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows error: %w", err)
+	}
+
+	return users, nil
+}
+
 // GetByID retrieves a user by ID
 func (r *UserRepository) GetByID(ctx context.Context, id string) (*domain.User, error) {
 	start := time.Now()

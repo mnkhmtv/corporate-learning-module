@@ -1,17 +1,20 @@
 package domain
 
-import "time"
+import (
+	"errors"
+	"time"
+)
 
-// RequestStatus defines the lifecycle status of a training request
+// RequestStatus represents the status of a training request
 type RequestStatus string
 
 const (
-	StatusPending  RequestStatus = "pending"
-	StatusApproved RequestStatus = "approved"
-	StatusRejected RequestStatus = "rejected"
+	RequestPending  RequestStatus = "pending"
+	RequestApproved RequestStatus = "approved"
+	RequestRejected RequestStatus = "rejected"
 )
 
-// TrainingRequest represents an employee's request to learn a topic
+// TrainingRequest represents a request for training or mentorship
 type TrainingRequest struct {
 	ID          string        `json:"id"`
 	UserID      string        `json:"userId"`
@@ -20,31 +23,49 @@ type TrainingRequest struct {
 	Status      RequestStatus `json:"status"`
 	CreatedAt   time.Time     `json:"createdAt"`
 	UpdatedAt   time.Time     `json:"updatedAt"`
+
+	// ↓ Новые поля из JOIN с users (для response DTO)
+	UserName     string  `json:"-"` // Не показывать в JSON напрямую
+	UserJobTitle *string `json:"-"`
+	UserTelegram *string `json:"-"`
+	// ↑
 }
 
-// IsPending checks if request is awaiting approval
-func (r *TrainingRequest) IsPending() bool {
-	return r.Status == StatusPending
+// Validate checks if the training request is valid
+func (tr *TrainingRequest) Validate() error {
+	if tr.UserID == "" {
+		return errors.New("user ID is required")
+	}
+	if tr.Topic == "" {
+		return errors.New("topic is required")
+	}
+	if tr.Description == "" {
+		return errors.New("description is required")
+	}
+	return nil
 }
 
-// IsApproved checks if request has been approved
-func (r *TrainingRequest) IsApproved() bool {
-	return r.Status == StatusApproved
+// IsPending checks if the request is pending
+func (tr *TrainingRequest) IsPending() bool {
+	return tr.Status == RequestPending
 }
 
-// IsRejected checks if request has been rejected
-func (r *TrainingRequest) IsRejected() bool {
-	return r.Status == StatusRejected
+// IsApproved checks if the request is approved
+func (tr *TrainingRequest) IsApproved() bool {
+	return tr.Status == RequestApproved
 }
 
-// Approve changes status to approved
-func (r *TrainingRequest) Approve() {
-	r.Status = StatusApproved
-	r.UpdatedAt = time.Now()
+// IsRejected checks if the request is rejected
+func (tr *TrainingRequest) IsRejected() bool {
+	return tr.Status == RequestRejected
 }
 
-// Reject changes status to rejected
-func (r *TrainingRequest) Reject() {
-	r.Status = StatusRejected
-	r.UpdatedAt = time.Now()
+// Approve marks the request as approved
+func (tr *TrainingRequest) Approve() {
+	tr.Status = RequestApproved
+}
+
+// Reject marks the request as rejected
+func (tr *TrainingRequest) Reject() {
+	tr.Status = RequestRejected
 }

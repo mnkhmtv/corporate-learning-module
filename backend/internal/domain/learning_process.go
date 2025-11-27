@@ -1,6 +1,9 @@
 package domain
 
-import "time"
+import (
+	"errors"
+	"time"
+)
 
 // LearningStatus defines the status of a learning process
 type LearningStatus string
@@ -10,20 +13,34 @@ const (
 	LearningCompleted LearningStatus = "completed"
 )
 
+// Feedback represents feedback for completed learning
+type Feedback struct {
+	Rating  int    `json:"rating"`
+	Comment string `json:"comment"`
+}
+
 // LearningProcess represents an active or completed learning session
 type LearningProcess struct {
-	ID              string             `json:"id"`
-	RequestID       string             `json:"requestId"`
-	UserID          string             `json:"userId"`
-	MentorID        string             `json:"mentorId"`
-	Status          LearningStatus     `json:"status"`
-	Plan            []LearningPlanItem `json:"plan"`
-	Notes           *string            `json:"notes,omitempty"`
-	FeedbackRating  *int               `json:"feedbackRating,omitempty"`
-	FeedbackComment *string            `json:"feedbackComment,omitempty"`
-	CreatedAt       time.Time          `json:"createdAt"`
-	UpdatedAt       time.Time          `json:"updatedAt"`
-	CompletedAt     *time.Time         `json:"completedAt,omitempty"`
+	ID        string             `json:"id"`
+	RequestID string             `json:"requestId"`
+	UserID    string             `json:"userId"`
+	MentorID  string             `json:"mentorId"`
+	Status    LearningStatus     `json:"status"`
+	StartDate time.Time          `json:"startDate"`
+	EndDate   *time.Time         `json:"endDate,omitempty"`
+	Plan      []LearningPlanItem `json:"plan"`
+	Feedback  *Feedback          `json:"feedback,omitempty"`
+	Notes     *string            `json:"notes,omitempty"`
+	CreatedAt time.Time          `json:"createdAt"`
+	UpdatedAt time.Time          `json:"updatedAt"`
+
+	RequestTopic       string  `json:"-"`
+	RequestDescription string  `json:"-"`
+	UserName           string  `json:"-"`
+	MentorName         string  `json:"-"`
+	MentorTelegram     *string `json:"-"`
+	MentorJobTitle     string  `json:"-"`
+	MentorExperience   *string `json:"-"`
 }
 
 // IsActive checks if learning process is ongoing
@@ -42,7 +59,6 @@ func (lp *LearningProcess) AddPlanItem(item LearningPlanItem) error {
 		return err
 	}
 	lp.Plan = append(lp.Plan, item)
-	lp.UpdatedAt = time.Now()
 	return nil
 }
 
@@ -54,7 +70,6 @@ func (lp *LearningProcess) UpdatePlanItem(id string, text string, completed bool
 				lp.Plan[i].Text = text
 			}
 			lp.Plan[i].Completed = completed
-			lp.UpdatedAt = time.Now()
 			return nil
 		}
 	}
@@ -66,7 +81,6 @@ func (lp *LearningProcess) TogglePlanItem(id string) error {
 	for i := range lp.Plan {
 		if lp.Plan[i].ID == id {
 			lp.Plan[i].Toggle()
-			lp.UpdatedAt = time.Now()
 			return nil
 		}
 	}
@@ -78,7 +92,6 @@ func (lp *LearningProcess) RemovePlanItem(id string) error {
 	for i, item := range lp.Plan {
 		if item.ID == id {
 			lp.Plan = append(lp.Plan[:i], lp.Plan[i+1:]...)
-			lp.UpdatedAt = time.Now()
 			return nil
 		}
 	}
@@ -106,11 +119,12 @@ func (lp *LearningProcess) Complete(rating int, comment string) error {
 	}
 
 	lp.Status = LearningCompleted
-	lp.FeedbackRating = &rating
-	lp.FeedbackComment = &comment
+	lp.Feedback = &Feedback{
+		Rating:  rating,
+		Comment: comment,
+	}
 	now := time.Now()
-	lp.CompletedAt = &now
-	lp.UpdatedAt = now
+	lp.EndDate = &now
 
 	return nil
 }
@@ -140,4 +154,15 @@ func (lp *LearningProcess) GetCompletedItemsCount() int {
 		}
 	}
 	return count
+}
+
+// Validate feedback
+func (f *Feedback) Validate() error {
+	if f.Rating < 1 || f.Rating > 5 {
+		return errors.New("rating must be between 1 and 5")
+	}
+	if f.Comment == "" {
+		return errors.New("comment cannot be empty")
+	}
+	return nil
 }

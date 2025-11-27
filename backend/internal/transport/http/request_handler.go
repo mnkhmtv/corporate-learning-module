@@ -5,7 +5,6 @@ import (
 
 	"github.com/mnkhmtv/corporate-learning-module/backend/internal/service"
 	"github.com/mnkhmtv/corporate-learning-module/backend/internal/transport/http/dto"
-	"github.com/mnkhmtv/corporate-learning-module/backend/internal/transport/http/middleware"
 
 	"github.com/gin-gonic/gin"
 )
@@ -22,26 +21,43 @@ func NewRequestHandler(requestService *service.RequestService, learningService *
 	}
 }
 
-// CreateRequest handles POST /api/requests
-func (h *RequestHandler) CreateRequest(c *gin.Context) {
-	userID, _ := middleware.GetUserID(c)
+// CreateRequestDTO represents the input for creating a training request
+type CreateRequestDTO struct {
+	Topic       string `json:"topic" binding:"required"`
+	Description string `json:"description" binding:"required"`
+}
 
-	var req dto.CreateRequestDTO
+// UpdateRequestDTO represents request update input
+type UpdateRequestDTO struct {
+	Topic       string `json:"topic" binding:"required"`
+	Description string `json:"description" binding:"required"`
+}
+
+func (h *RequestHandler) CreateRequest(c *gin.Context) {
+	userID, _ := c.Get("userID")
+
+	var req CreateRequestDTO
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	request, err := h.requestService.CreateRequest(c.Request.Context(), userID, req.Topic, req.Description)
+	request, err := h.requestService.CreateRequest(
+		c.Request.Context(),
+		userID.(string),
+		req.Topic,
+		req.Description,
+	)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusCreated, request)
+	// Convert to response DTO
+	responseDTO := dto.ToRequestResponseDTO(request)
+	c.JSON(http.StatusCreated, responseDTO)
 }
 
-// GetAllRequests handles GET /api/requests (admin only)
 func (h *RequestHandler) GetAllRequests(c *gin.Context) {
 	status := c.Query("status")
 	var statusPtr *string
@@ -55,44 +71,83 @@ func (h *RequestHandler) GetAllRequests(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, requests)
+	// Convert to response DTOs
+	responseDTOs := dto.ToRequestResponseDTOs(requests)
+	c.JSON(http.StatusOK, gin.H{"requests": responseDTOs})
 }
 
-// GetMyRequests handles GET /api/requests/my
 func (h *RequestHandler) GetMyRequests(c *gin.Context) {
-	userID, _ := middleware.GetUserID(c)
+	userID, _ := c.Get("userID")
 
-	requests, err := h.requestService.GetUserRequests(c.Request.Context(), userID)
+	requests, err := h.requestService.GetUserRequests(c.Request.Context(), userID.(string))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, requests)
+	// Convert to response DTOs
+	responseDTOs := dto.ToRequestResponseDTOs(requests)
+	c.JSON(http.StatusOK, gin.H{"requests": responseDTOs})
 }
 
-// AssignMentor handles POST /api/requests/:id/assign (admin only)
-func (h *RequestHandler) AssignMentor(c *gin.Context) {
+func (h *RequestHandler) GetRequestByID(c *gin.Context) {
 	requestID := c.Param("id")
+	userID, _ := c.Get("userID")
+	role, _ := c.Get("role")
 
-	var req dto.AssignMentorDTO
+	request, err := h.requestService.GetRequestByID(c.Request.Context(), requestID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Access control: owner or admin
+	if request.UserID != userID.(string) && role.(string) != "admin" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
+		return
+	}
+
+	// Convert to response DTO
+	responseDTO := dto.ToRequestResponseDTO(request)
+	c.JSON(http.StatusOK, responseDTO)
+}
+
+func (h *RequestHandler) UpdateRequest(c *gin.Context) {
+	requestID := c.Param("id")
+	userID, _ := c.Get("userID")
+	role, _ := c.Get("role")
+
+	var req UpdateRequestDTO
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Approve the request first
-	if err := h.requestService.ApproveRequest(c.Request.Context(), requestID); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	// Check access: owner or admin
+	existingRequest, err := h.requestService.GetRequestByID(c.Request.Context(), requestID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Assign mentor and create learning process
-	learning, err := h.learningService.AssignMentor(c.Request.Context(), requestID, req.MentorID)
+	// Access control: owner or admin
+	if existingRequest.UserID != userID.(string) && role.(string) != "admin" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
+		return
+	}
+
+	request, err := h.requestService.UpdateRequest(
+		c.Request.Context(),
+		requestID,
+		req.Topic,
+		req.Description,
+	)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, learning)
+	// Convert to response DTO
+	responseDTO := dto.ToRequestResponseDTO(request)
+	c.JSON(http.StatusOK, responseDTO)
 }

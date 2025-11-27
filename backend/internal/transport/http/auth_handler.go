@@ -19,7 +19,6 @@ func NewAuthHandler(authService *service.AuthService) *AuthHandler {
 	}
 }
 
-// Register handles POST /api/auth/register
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req dto.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -40,7 +39,6 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	c.JSON(http.StatusCreated, user)
 }
 
-// Login handles POST /api/auth/login
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req dto.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
