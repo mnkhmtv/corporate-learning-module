@@ -86,36 +86,41 @@ export default function DashboardPage() {
           История заявок
         </h2>
         <div className="space-y-4">
-          {(requests || []).map((request) => (
-            <Card key={request.id}>
-              <CardContent className="flex items-center justify-between p-4">
-                <div>
-                  <h3 className="font-medium">{request.topic}</h3>
-                  <p className="text-sm text-slate-500">
-                    Создана: {request.createdAt && format(parseISO(request.createdAt), 'd MMM yyyy', { locale: ru })}
-                  </p>
-                </div>
-                <div className="flex items-center gap-4">
-                  <Badge variant={
-                    request.status === 'approved' ? 'success' : 
-                    request.status === 'rejected' ? 'destructive' : 
-                    'secondary'
-                  }>
-                    {request.status === 'pending' && 'На рассмотрении'}
-                    {request.status === 'approved' && 'Назначена'}
-                    {request.status === 'rejected' && 'Отклонена'}
-                  </Badge>
-                  {request.status === 'approved' && (
-                    <Button variant="ghost" size="sm" asChild>
-                      <Link href={`/dashboard/learning/${learnings.find(l => l.requestId === request.id)?.id}`}>
-                        Перейти
-                      </Link>
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+          {(requests || []).map((request) => {
+            const learning = learnings?.find(l => l.requestId === request.id);
+            const isCompleted = learning?.status === 'completed';
+
+            return (
+              <Card key={request.id}>
+                <CardContent className="flex items-center justify-between p-4">
+                  <div>
+                    <h3 className="font-medium">{request.topic}</h3>
+                    <p className="text-sm text-slate-500">
+                      Создана: {request.createdAt && format(parseISO(request.createdAt), 'd MMM yyyy', { locale: ru })}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <Badge variant={
+                      request.status === 'approved' ? (isCompleted ? 'outline' : 'success') : 
+                      request.status === 'rejected' ? 'destructive' : 
+                      'secondary'
+                    }>
+                      {request.status === 'pending' && 'На рассмотрении'}
+                      {request.status === 'approved' && (isCompleted ? 'Закончено' : 'Назначено')}
+                      {request.status === 'rejected' && 'Отклонено'}
+                    </Badge>
+                    {request.status === 'approved' && !isCompleted && (
+                      <Button variant="ghost" size="sm" asChild>
+                        <Link href={`/dashboard/learning/${learning?.id}`}>
+                          Перейти
+                        </Link>
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
           {(!requests || requests.length === 0) && (
             <p className="text-slate-500 text-sm">История заявок пуста</p>
           )}
