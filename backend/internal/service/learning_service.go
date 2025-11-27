@@ -72,7 +72,7 @@ func (s *LearningService) UpdateLearning(ctx context.Context, id string, topic s
 
 // UpdatePlan updates learning plan
 func (s *LearningService) UpdatePlan(ctx context.Context, id string, plan []domain.LearningPlanItem) (*domain.LearningProcess, error) {
-	_, err := s.learningRepo.GetByID(ctx, id) // ← Убрали переменную learning
+	_, err := s.learningRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +94,7 @@ func (s *LearningService) UpdatePlan(ctx context.Context, id string, plan []doma
 
 // UpdateNotes updates learning notes
 func (s *LearningService) UpdateNotes(ctx context.Context, id string, notes string) (*domain.LearningProcess, error) {
-	_, err := s.learningRepo.GetByID(ctx, id) // ← Убрали переменную learning
+	_, err := s.learningRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +128,7 @@ func (s *LearningService) CompleteLearning(ctx context.Context, id string, ratin
 		return nil, err
 	}
 
-	if err := s.learningRepo.Complete(ctx, id, feedback); err != nil { // ← Теперь передаем feedback объект
+	if err := s.learningRepo.Complete(ctx, id, feedback); err != nil {
 		return nil, fmt.Errorf("failed to complete learning: %w", err)
 	}
 

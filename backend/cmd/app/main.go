@@ -2,18 +2,20 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"log/slog"
 	"os"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 
 	"github.com/mnkhmtv/corporate-learning-module/backend/config"
 	"github.com/mnkhmtv/corporate-learning-module/backend/internal/repository/postgres"
 	"github.com/mnkhmtv/corporate-learning-module/backend/internal/service"
-	http "github.com/mnkhmtv/corporate-learning-module/backend/internal/transport/http"
+	"github.com/mnkhmtv/corporate-learning-module/backend/internal/transport/http"
 )
 
 func main() {
@@ -46,8 +48,17 @@ func main() {
 
 	logger.Info("Connected to database successfully")
 
-	// Note: Run migrations manually using golang-migrate CLI
-	// Example: migrate -path migrations -database "postgres://user:pass@localhost:5432/dbname?sslmode=disable" up
+	// Run database migrations
+	if cfg.Database.AutoMigrate {
+		logger.Info("Auto-migration enabled, running migrations...")
+
+		if err := runMigrations(cfg.Database); err != nil {
+			logger.Error("Migration failed", "error", err)
+			log.Fatalf("Migration failed: %v", err)
+			os.Exit(1)
+		}
+		logger.Info("Migrations completed successfully")
+	}
 
 	// Initialize repositories
 	userRepo := postgres.NewUserRepository(pool)
@@ -58,7 +69,7 @@ func main() {
 	// Initialize services
 	authService := service.NewAuthService(userRepo, cfg.Auth.JWTSecret, cfg.Auth.TokenTTL)
 	userService := service.NewUserService(userRepo)
-	requestService := service.NewRequestService(requestRepo, userRepo) // ← ИСПРАВЛЕНО
+	requestService := service.NewRequestService(requestRepo, userRepo)
 	mentorService := service.NewMentorService(mentorRepo)
 	learningService := service.NewLearningService(learningRepo, mentorRepo, requestRepo)
 
@@ -86,4 +97,35 @@ func main() {
 	if err := router.Run(addr); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
+}
+
+// runMigrations applies all pending migrations from file system
+func runMigrations(dbCfg config.DatabaseConfig) error {
+	// Construct database URL
+	dbURL := fmt.Sprintf(
+		"postgres://%s:%s@%s:%d/%s?sslmode=%s",
+		dbCfg.User, dbCfg.Password, dbCfg.Host, dbCfg.Port, dbCfg.DBName, dbCfg.SSLMode,
+	)
+
+	// Create migrate instance with file:// source
+	m, err := migrate.New(
+		"file://internal/repository/migrations",
+		dbURL,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create migrate instance: %w", err)
+	}
+	defer m.Close()
+
+	// Run migrations
+	if err := m.Up(); err != nil {
+		if err == migrate.ErrNoChange {
+			log.Println("No new migrations to apply")
+			return nil
+		}
+		return fmt.Errorf("migration up failed: %w", err)
+	}
+
+	log.Println("All migrations applied successfully")
+	return nil
 }
