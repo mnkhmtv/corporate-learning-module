@@ -3,10 +3,9 @@ package http
 import (
 	"net/http"
 
+	"github.com/gin-gonic/gin"
 	"github.com/mnkhmtv/corporate-learning-module/backend/internal/service"
 	"github.com/mnkhmtv/corporate-learning-module/backend/internal/transport/http/dto"
-
-	"github.com/gin-gonic/gin"
 )
 
 type AuthHandler struct {
@@ -14,13 +13,12 @@ type AuthHandler struct {
 }
 
 func NewAuthHandler(authService *service.AuthService) *AuthHandler {
-	return &AuthHandler{
-		authService: authService,
-	}
+	return &AuthHandler{authService: authService}
 }
 
+// Register handles POST /api/auth/register
 func (h *AuthHandler) Register(c *gin.Context) {
-	var req dto.RegisterRequest
+	var req dto.RegisterDTO
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -28,8 +26,12 @@ func (h *AuthHandler) Register(c *gin.Context) {
 
 	user, err := h.authService.Register(
 		c.Request.Context(),
-		req.Name, req.Email, req.Password, req.Role,
-		req.Department, req.JobTitle, req.Telegram,
+		req.Name,
+		req.Email,
+		req.Password,
+		req.Department,
+		req.JobTitle,
+		req.Telegram,
 	)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -39,8 +41,9 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	c.JSON(http.StatusCreated, user)
 }
 
+// Login handles POST /api/auth/login
 func (h *AuthHandler) Login(c *gin.Context) {
-	var req dto.LoginRequest
+	var req dto.LoginDTO
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -52,25 +55,8 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, dto.LoginResponse{
-		Token: token,
-		User:  user,
+	c.JSON(http.StatusOK, gin.H{
+		"token": token,
+		"user":  user,
 	})
-}
-
-// GetMe handles GET /api/auth/me
-func (h *AuthHandler) GetMe(c *gin.Context) {
-	userID, exists := c.Get("userId")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return
-	}
-
-	user, err := h.authService.GetUserByID(c.Request.Context(), userID.(string))
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
-		return
-	}
-
-	c.JSON(http.StatusOK, user)
 }

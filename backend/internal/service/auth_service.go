@@ -2,12 +2,11 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/mnkhmtv/corporate-learning-module/backend/internal/domain"
-	"github.com/mnkhmtv/corporate-learning-module/backend/internal/pkg/jwt"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -25,61 +24,47 @@ func NewAuthService(userRepo domain.UserRepository, jwtSecret string, tokenTTL t
 	}
 }
 
-// Register creates a new user account
-func (s *AuthService) Register(ctx context.Context, name, email, password, role, department, jobTitle, telegram string) (*domain.User, error) {
-	// Validate input
-	if err := s.validateRegistration(name, email, password); err != nil {
-		return nil, err
-	}
-
+// Register creates a new user
+func (s *AuthService) Register(ctx context.Context, name, email, password string, department, jobTitle, telegram *string) (*domain.User, error) {
 	// Check if user already exists
-	existingUser, err := s.userRepo.GetByEmail(ctx, email)
-	if err != nil && !errors.Is(err, domain.ErrUserNotFound) {
-		return nil, fmt.Errorf("failed to check existing user: %w", err)
-	}
+	existingUser, _ := s.userRepo.GetByEmail(ctx, email)
 	if existingUser != nil {
 		return nil, domain.ErrUserAlreadyExists
 	}
 
 	// Hash password
-	hashedPassword, err := s.hashPassword(password)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, fmt.Errorf("failed to hash password: %w", err)
-	}
-
-	// Convert role string to domain.UserRole
-	userRole := domain.UserRole(role)
-	if userRole != domain.RoleEmployee && userRole != domain.RoleAdmin {
-		userRole = domain.RoleEmployee // Default to employee
 	}
 
 	// Create user
 	user := &domain.User{
 		Name:         name,
 		Email:        email,
-		PasswordHash: hashedPassword,
-		Role:         userRole,
-		Department:   stringToPtr(department),
-		JobTitle:     stringToPtr(jobTitle),
-		Telegram:     stringToPtr(telegram),
+		PasswordHash: string(hashedPassword),
+		Role:         domain.RoleEmployee, // Default role
+		Department:   department,
+		JobTitle:     jobTitle,
+		Telegram:     telegram,
 	}
 
 	if err := s.userRepo.Create(ctx, user); err != nil {
 		return nil, fmt.Errorf("failed to create user: %w", err)
 	}
 
+	// Clear password hash before returning
+	user.PasswordHash = ""
+
 	return user, nil
 }
 
-// Login authenticates a user and returns JWT token
+// Login authenticates user and returns JWT token
 func (s *AuthService) Login(ctx context.Context, email, password string) (string, *domain.User, error) {
 	// Get user by email
 	user, err := s.userRepo.GetByEmail(ctx, email)
 	if err != nil {
-		if errors.Is(err, domain.ErrUserNotFound) {
-			return "", nil, domain.ErrInvalidCredentials
-		}
-		return "", nil, fmt.Errorf("failed to get user: %w", err)
+		return "", nil, domain.ErrInvalidCredentials
 	}
 
 	// Verify password
@@ -88,51 +73,63 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (string
 	}
 
 	// Generate JWT token
-	token, err := jwt.GenerateToken(user.ID, string(user.Role), s.jwtSecret, s.tokenTTL)
+	token, err := s.generateToken(user)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to generate token: %w", err)
 	}
 
+	// Clear password hash before returning
+	user.PasswordHash = ""
+
 	return token, user, nil
 }
 
-// GetUserByID retrieves user information
-func (s *AuthService) GetUserByID(ctx context.Context, userID string) (*domain.User, error) {
-	user, err := s.userRepo.GetByID(ctx, userID)
+// generateToken creates a JWT token for the user
+func (s *AuthService) generateToken(user *domain.User) (string, error) {
+	claims := jwt.MapClaims{
+		"user_id": user.ID,
+		"email":   user.Email,
+		"role":    string(user.Role),
+		"exp":     time.Now().Add(s.tokenTTL).Unix(),
+		"iat":     time.Now().Unix(),
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := token.SignedString([]byte(s.jwtSecret))
 	if err != nil {
-		return nil, err
+		return "", fmt.Errorf("failed to sign token: %w", err)
 	}
-	return user, nil
+
+	return tokenString, nil
 }
 
-// validateRegistration validates registration input
-func (s *AuthService) validateRegistration(name, email, password string) error {
-	if name == "" {
-		return fmt.Errorf("%w: name is required", domain.ErrInvalidInput)
-	}
-	if email == "" {
-		return fmt.Errorf("%w: email is required", domain.ErrInvalidInput)
-	}
-	if len(password) < 8 {
-		return domain.ErrWeakPassword
-	}
-	// Add email format validation if needed
-	return nil
-}
+// ValidateToken validates a JWT token and returns the user ID
+func (s *AuthService) ValidateToken(tokenString string) (string, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		// Validate signing method
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(s.jwtSecret), nil
+	})
 
-// hashPassword generates bcrypt hash from plain password
-func (s *AuthService) hashPassword(password string) (string, error) {
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to parse token: %w", err)
 	}
-	return string(hash), nil
-}
 
-// Helper function to convert string to pointer
-func stringToPtr(s string) *string {
-	if s == "" {
-		return nil
+	if !token.Valid {
+		return "", fmt.Errorf("invalid token")
 	}
-	return &s
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return "", fmt.Errorf("invalid token claims")
+	}
+
+	userID, ok := claims["user_id"].(string)
+	if !ok {
+		return "", fmt.Errorf("invalid user_id in token")
+	}
+
+	return userID, nil
 }

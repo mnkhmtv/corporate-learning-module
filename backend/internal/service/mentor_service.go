@@ -108,3 +108,11 @@ func (s *MentorService) UpdateMentor(ctx context.Context, id string, name, jobTi
 
 	return mentor, nil
 }
+
+// stringToPtr converts string to *string, returns nil for empty strings
+func stringToPtr(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
+}
