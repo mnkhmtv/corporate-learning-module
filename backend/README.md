@@ -85,64 +85,174 @@ For more details, see comments in the source code.
 
 3. **Start PostgreSQL via Docker**
    ```
-   docker-compose up -d postgres
+   docker-compose up -d --build
    ```
 
+This will start PostgreSQL + application with migrations.
 Server will be available at: `http://localhost:8080`
 
-### Docker (Full Stack)
+# Data Models (DTOs)
 
+## User
+
+```json
+{
+  "id": "string",
+  "name": "string",
+  "role": "employee | admin",
+  "email": "string (unique)",
+  "department": "string (optional)",
+  "jobTitle": "string (optional)",
+  "telegram": "string",
+  "createdAt": "ISO Date string",
+  "updatedAt": "ISO Date string"
+}
 ```
-docker-compose up --build
+
+## Training Request (Request)
+
+```json
+{
+  "id": "string",
+  "user": {
+    "id": "string",
+    "name": "string",
+    "jobTitle": "string",
+    "telegram": "string", 
+  },
+  "topic": "string",
+  "description": "string",
+  "status": "pending | approved | rejected",
+  "createdAt": "ISO Date string",
+  "updatedAt": "ISO Date string"
+}
 ```
 
-This will start PostgreSQL + application with migrations.
+## Mentor
 
-## API Endpoints (may change by some time)
+```json
+{
+  "id": "string",
+  "name": "string",
+  "jobTitle": "string",
+  "experience": "string",
+  "workload": "number (0-5)",
+  "email": "string",
+  "telegram": "string"
+}
+```
 
-### Authentication
+## Learning Plan Item (Plan)
 
-| Method | Endpoint             | Description             | Auth Required |
-|--------|----------------------|-------------------------|---------------|
-| POST   | `/api/auth/register` | Register a new user     | ❌             |
-| POST   | `/api/auth/login`    | Login and get JWT token | ❌             |
+```json
+{
+  "id": "string",
+  "text": "string",
+  "completed": "boolean"
+}
+```
 
-### Training Requests
+## Learning Process (Learning)
 
-| Method | Endpoint                   | Description                                    | Auth Required | Role  |
-|--------|----------------------------|------------------------------------------------|---------------|-------|
-| POST   | `/api/requests`            | Create a training request                      | ✅             | All   |
-| GET    | `/api/requests/my`         | Get my training requests                       | ✅             | All   |
-| GET    | `/api/requests`            | Get all requests (with optional status filter) | ✅             | Admin |
-| POST   | `/api/requests/:id/assign` | Assign mentor to request                       | ✅             | Admin |
+```json
+{
+  "id": "string",
+  "request": {
+    "id": "string",
+    "topic": "string",
+    "description": "string"
+  },
+  "user": {
+    "id": "string",
+    "name": "string"
+  },
+  "mentor": {
+    "id": "string",
+    "name": "string",
+    "telegram": "string",
+    "jobTitle": "string",
+    "experience": "string"
+  },
+  "status": "active | completed",
+  "startDate": "ISO Date string",
+  "endDate": "ISO Date string (optional)",
+  "plan": "LearningPlanItem[]",
+  "feedback": {
+    "rating": "number",
+    "comment": "string"
+  },
+  "notes": "string (optional)"
+}
+```
 
-### Mentors
+# API Endpoints
 
-| Method | Endpoint           | Description         | Auth Required | Role  |
-|--------|--------------------|---------------------|---------------|-------|
-| GET    | `/api/mentors`     | Get all mentors     | ✅             | All   |
-| GET    | `/api/mentors/:id` | Get mentor by ID    | ✅             | All   |
-| POST   | `/api/mentors`     | Create a new mentor | ✅             | Admin |
+## /health
 
-### Learning Processes
+| Path | Method | Description          | Access | Body | Response                              | AuthRequired |
+|------|--------|----------------------|--------|------|---------------------------------------|--------------|
+|      | GET    | Check backend health | All    |      | "service": string<br>"status": string | -            |
 
-| Method | Endpoint                      | Description                     | Auth Required | Role |
-|--------|-------------------------------|---------------------------------|---------------|------|
-| GET    | `/api/learnings`              | Get my learning processes       | ✅             | All  |
-| GET    | `/api/learnings/:id`          | Get learning process by ID      | ✅             | All  |
-| GET    | `/api/learnings/:id/progress` | Get completion progress (%)     | ✅             | All  |
-| PUT    | `/api/learnings/:id/plan`     | Update entire learning plan     | ✅             | All  |
-| PATCH  | `/api/learnings/:id/notes`    | Update learning notes           | ✅             | All  |
-| POST   | `/api/learnings/:id/complete` | Complete learning with feedback | ✅             | All  |
+## /metrics
 
-### Health Check
+| Path | Method | Description                | Access | Body | Response           | AuthRequired |
+|------|--------|----------------------------|--------|------|--------------------|--------------|
+|      | GET    | Get metrics for Prometheus | All    |      | Raw text with data | -            |
 
-| Method | Endpoint  | Description      | Auth Required |
-|--------|-----------|------------------|---------------|
-| GET    | `/health` | API health check | ❌             |
+## /auth
+
+| Path      | Method | Description                | Access | Body                                                                                                                         | Response (JSON)                 | AuthRequired |
+|-----------|--------|----------------------------|--------|------------------------------------------------------------------------------------------------------------------------------|---------------------------------|--------------|
+| /register | POST   | Register new user          | All    | "name": string<br>"email": string<br>"password": string<br>"department": string<br>"jobTitile": string<br>"telegram": string | User                            | -            |
+| /login    | POST   | Login                      | All    | "email": string<br>"password": string                                                                                        | "token": string<br>"user": User | -            |
+| /me       | GET    | Get current user's info    | All    |                                                                                                                              | User                            | +            |
+| /me       | PUT    | Change current user's info | All    | "name": string<br>"email": string<br>"password": string<br>"department": string<br>"jobTitile": string<br>"telegram": string | User                            | +            |
+
+## /users
+
+| Path | Method | Description                  | Access | Body                                                                                                                         | Response (JSON)   | AuthRequired |
+|------|--------|------------------------------|--------|------------------------------------------------------------------------------------------------------------------------------|-------------------|--------------|
+| /    | GET    | Get all users                | Admin  |                                                                                                                              | "users": User\[\] | +            |
+| /:id | GET    | Get user info by its `id`    | Admin  |                                                                                                                              | User              | +            |
+| /:id | PUT    | Change user info by its `id` | Admin  | "name": string<br>"email": string<br>"password": string<br>"department": string<br>"jobTitile": string<br>"telegram": string | User              | +            |
 
 
-## ⚙️ Configuration
+## /requests
+
+| Path | Method | Description                 | Access                                   | Body                                     | Response (JSON)         | AuthRequired |
+|------|--------|-----------------------------|------------------------------------------|------------------------------------------|-------------------------|--------------|
+| /    | GET    | Get all requests            | Admin                                    |                                          | "requests": Request\[\] | +            |
+| /    | POST   | Create new request          | All                                      | "topic": string<br>"description": string | Request                 | +            |
+| /my  | GET    | Get current user's requests | All                                      |                                          | "requests": Request\[\] | +            |
+| /:id | GET    | Get request by id           | All (if id in `/my`) \| Admin otherwise  |                                          | Request                 | +            |
+| /:id | PUT    | Change request by id        | All (if id in `/my`) \| Admin  otherwise | "topic": string<br>"description": string | Request                 | +            |
+
+
+## /mentors
+
+| Path | Method | Description              | Access                                           | Body                                                                                                                                   | Response (JSON)       | AuthRequired |
+|------|--------|--------------------------|--------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------|-----------------------|--------------|
+| /    | GET    | Get all mentors          | Admin                                            |                                                                                                                                        | "mentors": Mentor\[\] | +            |
+| /    | POST   | Create new mentor        | Admin                                            | "name": string<br>"jobTitle": string<br>"experience": string<br>"workload": 0 <= integer <= 5<br>"email": string<br>"telegram": string | Mentor                | +            |
+| /:id | GET    | Get mentor info by id    | All (if id in `/requests/my`) \| Admin otherwise |                                                                                                                                        | Mentor                | +            |
+| /:id | PUT    | Change mentor info by id | Admin                                            | "name": string<br>"jobTitle": string<br>"experience": string<br>"workload": 0 <= integer <= 5<br>"email": string<br>"telegram": string | Mentor                | +            |
+
+## /learnings
+
+| Path          | Method | Description                 | Access                                  | Body                                                                                                                                                                                           | Response (JSON)           | AuthRequired |
+|---------------|--------|-----------------------------|-----------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------|--------------|
+| /             | GET    | Get all learnings           | Admin                                   |                                                                                                                                                                                                | "learnings": Learning\[\] | +            |
+| /             | POST   | Create new learning         | All                                     | "topic": string<br>"description": string                                                                                                                                                       | Learning                  | +            |
+| /my           | GET    | Get user learnings          | All                                     |                                                                                                                                                                                                | "learnings": Learning\[\] | +            |
+| /:id          | GET    | Get learning by id          | All (if id in `/my`) \| Admin otherwise |                                                                                                                                                                                                | Learning                  | +            |
+| /:id          | PUT    | Change learning info by id  | Admin                                   | "topic": string<br>"description": string<br>"status": active \| completed<br>"plan": Plan[]<br>"feedback": {<br>  "rating": 1 <= integer <= 5 <br>  "comment": string<br>},<br>"notes": string | Learning                  | +            |
+| /:id/plan     | PUT    | Change learning plan by id  | All (if id in /my) \| Admin otherwise   | "plan": Plan[]                                                                                                                                                                                 | Learning                  | +            |
+| /:id/notes    | PUT    | Change learning notes by id | All (if id in /my) \| Admin otherwise   | "notes": string                                                                                                                                                                                | Learning                  | +            |
+| /:id/complete | POST   | Complete learning by id     | All (if id in /my) \| Admin otherwise   | "rating": 1 <= integer <= 5<br>"comment": string                                                                                                                                               | Learning                  | +            |
+
+
+
+## Configuration
 
 Settings are located in `config/config.yaml` and can be overridden via `.env`:
 
@@ -165,7 +275,7 @@ auth:
   token_ttl: 24h
 ```
 
-## 📊 Monitoring (Roadmap)
+## Monitoring (Roadmap)
 
 **MVP (current version):**
 - [x\] Structured logging (log/slog)
