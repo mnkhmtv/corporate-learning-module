@@ -90,7 +90,7 @@ func (h *Handler) InitRoutes(router *gin.Engine, logger *slog.Logger, jwtSecret 
 		mentors := api.Group("/mentors")
 		mentors.Use(middleware.AuthMiddleware(jwtSecret))
 		{
-			mentors.GET("", middleware.AdminOnly(), h.mentorHandler.GetAllMentors)
+			mentors.GET("", h.mentorHandler.GetAllMentors)
 			mentors.POST("", middleware.AdminOnly(), h.mentorHandler.CreateMentor)
 			mentors.GET("/:id", h.mentorHandler.GetMentorByID)
 			mentors.PUT("/:id", middleware.AdminOnly(), h.mentorHandler.UpdateMentor)
