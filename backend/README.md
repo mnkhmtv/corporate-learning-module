@@ -83,7 +83,7 @@ For more details, see comments in the source code.
    # Edit .env with your parameters
    ```
 
-3. **Start PostgreSQL via Docker**
+3. **Start via Docker**
    ```
    docker-compose up -d --build
    ```
