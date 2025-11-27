@@ -10,10 +10,14 @@ import (
 
 type AuthHandler struct {
 	authService *service.AuthService
+	userService *service.UserService
 }
 
-func NewAuthHandler(authService *service.AuthService) *AuthHandler {
-	return &AuthHandler{authService: authService}
+func NewAuthHandler(authService *service.AuthService, userService *service.UserService) *AuthHandler {
+	return &AuthHandler{
+		authService: authService,
+		userService: userService,
+	}
 }
 
 // Register handles POST /api/auth/register
@@ -59,4 +63,45 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		"token": token,
 		"user":  user,
 	})
+}
+
+// GetMe handles GET /api/auth/me
+func (h *AuthHandler) GetMe(c *gin.Context) {
+	userID, _ := c.Get("userID")
+
+	user, err := h.userService.GetUserByID(c.Request.Context(), userID.(string))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, user)
+}
+
+// UpdateMe handles PUT /api/auth/me
+func (h *AuthHandler) UpdateMe(c *gin.Context) {
+	userID, _ := c.Get("userID")
+
+	var req dto.UpdateUserDTO
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	user, err := h.userService.UpdateCurrentUser(
+		c.Request.Context(),
+		userID.(string),
+		req.Name,
+		req.Email,
+		req.Department,
+		req.JobTitle,
+		req.Telegram,
+		req.Password,
+	)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, user)
 }

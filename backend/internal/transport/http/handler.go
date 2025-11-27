@@ -26,7 +26,7 @@ func NewHandler(
 	mentorService *service.MentorService,
 ) *Handler {
 	return &Handler{
-		authHandler:     NewAuthHandler(authService),
+		authHandler:     NewAuthHandler(authService, userService),
 		userHandler:     NewUserHandler(userService),
 		requestHandler:  NewRequestHandler(requestService, learningService),
 		learningHandler: NewLearningHandler(learningService),
@@ -58,6 +58,10 @@ func (h *Handler) InitRoutes(router *gin.Engine, logger *slog.Logger, jwtSecret 
 		{
 			auth.POST("/register", h.authHandler.Register)
 			auth.POST("/login", h.authHandler.Login)
+
+			// Protected auth routes
+			auth.GET("/me", middleware.AuthMiddleware(jwtSecret), h.authHandler.GetMe)
+			auth.PUT("/me", middleware.AuthMiddleware(jwtSecret), h.authHandler.UpdateMe)
 		}
 
 		// Protected routes (require authentication)
@@ -65,10 +69,6 @@ func (h *Handler) InitRoutes(router *gin.Engine, logger *slog.Logger, jwtSecret 
 		users := api.Group("/users")
 		users.Use(middleware.AuthMiddleware(jwtSecret))
 		{
-			// All authenticated users
-			users.GET("/me", h.userHandler.GetMe)
-			users.PUT("/me", h.userHandler.UpdateMe)
-
 			// Admin only
 			users.GET("", middleware.AdminOnly(), h.userHandler.GetAllUsers)
 			users.GET("/:id", middleware.AdminOnly(), h.userHandler.GetUserByID)
@@ -100,9 +100,8 @@ func (h *Handler) InitRoutes(router *gin.Engine, logger *slog.Logger, jwtSecret 
 		learnings := api.Group("/learnings")
 		learnings.Use(middleware.AuthMiddleware(jwtSecret))
 		{
-			learnings.GET("", middleware.AdminOnly(), h.learningHandler.GetAllLearnings)
+			learnings.GET("", h.learningHandler.GetMyLearnings)
 			learnings.POST("", h.learningHandler.CreateLearning)
-			learnings.GET("/my", h.learningHandler.GetMyLearnings)
 			learnings.GET("/:id", h.learningHandler.GetLearningByID)
 			learnings.PUT("/:id", middleware.AdminOnly(), h.learningHandler.UpdateLearning)
 			learnings.PUT("/:id/plan", h.learningHandler.UpdatePlan)
