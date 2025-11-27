@@ -2,13 +2,20 @@ package dto
 
 import "github.com/mnkhmtv/corporate-learning-module/backend/internal/domain"
 
+// CreateLearningDTO represents request to create learning process
+type CreateLearningDTO struct {
+	Topic       string `json:"topic" binding:"required"`
+	Description string `json:"description" binding:"required"`
+}
+
 // UpdateLearningDTO represents full learning update (admin only)
 type UpdateLearningDTO struct {
-	Topic    string                `json:"topic" binding:"required" example:"Go Programming"`
-	Status   string                `json:"status" binding:"required,oneof=active completed" example:"active"`
-	Plan     []LearningPlanItemDTO `json:"plan" binding:"required"`
-	Feedback *FeedbackDTO          `json:"feedback,omitempty"`
-	Notes    *string               `json:"notes,omitempty" example:"Student is making good progress"`
+	Topic       string                `json:"topic" binding:"required" example:"Go Programming"`
+	Description string                `json:"description" binding:"required"`
+	Status      string                `json:"status" binding:"required,oneof=active completed" example:"active"`
+	Plan        []LearningPlanItemDTO `json:"plan" binding:"required"`
+	Feedback    *FeedbackDTO          `json:"feedback,omitempty"`
+	Notes       *string               `json:"notes,omitempty" example:"Student is making good progress"`
 }
 
 // UpdatePlanDTO represents plan update

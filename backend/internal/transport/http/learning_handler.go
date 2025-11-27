@@ -67,6 +67,32 @@ func (h *LearningHandler) GetLearningByID(c *gin.Context) {
 	c.JSON(http.StatusOK, responseDTO)
 }
 
+// CreateLearning handles POST /api/learnings
+func (h *LearningHandler) CreateLearning(c *gin.Context) {
+	userID, _ := c.Get("userID")
+
+	var req dto.CreateLearningDTO
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	learning, err := h.learningService.CreateLearningFromRequest(
+		c.Request.Context(),
+		userID.(string),
+		req.Topic,
+		req.Description,
+	)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	responseDTO := dto.ToLearningResponseDTO(learning)
+	c.JSON(http.StatusCreated, responseDTO)
+}
+
+// UpdateLearning handles PUT /api/learnings/:id (admin only)
 func (h *LearningHandler) UpdateLearning(c *gin.Context) {
 	learningID := c.Param("id")
 
@@ -76,7 +102,6 @@ func (h *LearningHandler) UpdateLearning(c *gin.Context) {
 		return
 	}
 
-	// Convert DTO to domain
 	status := domain.LearningStatus(req.Status)
 	plan := dto.ToPlanItems(req.Plan)
 
@@ -92,6 +117,7 @@ func (h *LearningHandler) UpdateLearning(c *gin.Context) {
 		c.Request.Context(),
 		learningID,
 		req.Topic,
+		req.Description,
 		status,
 		plan,
 		feedback,
@@ -102,7 +128,6 @@ func (h *LearningHandler) UpdateLearning(c *gin.Context) {
 		return
 	}
 
-	// Convert to response DTO
 	responseDTO := dto.ToLearningResponseDTO(learning)
 	c.JSON(http.StatusOK, responseDTO)
 }

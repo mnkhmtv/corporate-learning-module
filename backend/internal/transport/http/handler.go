@@ -101,6 +101,7 @@ func (h *Handler) InitRoutes(router *gin.Engine, logger *slog.Logger, jwtSecret 
 		learnings.Use(middleware.AuthMiddleware(jwtSecret))
 		{
 			learnings.GET("", middleware.AdminOnly(), h.learningHandler.GetAllLearnings)
+			learnings.POST("", h.learningHandler.CreateLearning)
 			learnings.GET("/my", h.learningHandler.GetMyLearnings)
 			learnings.GET("/:id", h.learningHandler.GetLearningByID)
 			learnings.PUT("/:id", middleware.AdminOnly(), h.learningHandler.UpdateLearning)

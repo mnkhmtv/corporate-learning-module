@@ -41,8 +41,70 @@ func (s *LearningService) GetLearningByID(ctx context.Context, id string) (*doma
 	return s.learningRepo.GetByID(ctx, id)
 }
 
+// CreateLearningFromRequest creates a learning process from topic and description
+func (s *LearningService) CreateLearningFromRequest(ctx context.Context, userID, topic, description string) (*domain.LearningProcess, error) {
+	// First, create a training request
+	request := &domain.TrainingRequest{
+		UserID:      userID,
+		Topic:       topic,
+		Description: description,
+		Status:      domain.RequestApproved, // Auto-approve
+	}
+
+	if err := s.requestRepo.Create(ctx, request); err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Get available mentor (with lowest workload)
+	mentors, err := s.mentorRepo.GetAll(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get mentors: %w", err)
+	}
+
+	if len(mentors) == 0 {
+		return nil, fmt.Errorf("no mentors available")
+	}
+
+	// Find mentor with lowest workload
+	var selectedMentor *domain.Mentor
+	minWorkload := 6 // Max is 5, so start with 6
+	for _, mentor := range mentors {
+		if mentor.Workload < minWorkload {
+			minWorkload = mentor.Workload
+			selectedMentor = mentor
+		}
+	}
+
+	if selectedMentor == nil {
+		return nil, fmt.Errorf("no suitable mentor found")
+	}
+
+	// Create learning process
+	learning := &domain.LearningProcess{
+		RequestID: request.ID,
+		UserID:    userID,
+		MentorID:  selectedMentor.ID,
+		Status:    domain.LearningActive,
+		StartDate: time.Now(),
+		Plan:      []domain.LearningPlanItem{},
+		Notes:     nil,
+	}
+
+	if err := s.learningRepo.Create(ctx, learning); err != nil {
+		return nil, fmt.Errorf("failed to create learning process: %w", err)
+	}
+
+	// Update mentor workload
+	if err := s.mentorRepo.UpdateWorkload(ctx, selectedMentor.ID, selectedMentor.Workload+1); err != nil {
+		return nil, fmt.Errorf("failed to update mentor workload: %w", err)
+	}
+
+	// Reload to get full data with JOINs
+	return s.learningRepo.GetByID(ctx, learning.ID)
+}
+
 // UpdateLearning updates full learning process (admin only)
-func (s *LearningService) UpdateLearning(ctx context.Context, id string, topic string, status domain.LearningStatus, plan []domain.LearningPlanItem, feedback *domain.Feedback, notes *string) (*domain.LearningProcess, error) {
+func (s *LearningService) UpdateLearning(ctx context.Context, id string, topic string, description string, status domain.LearningStatus, plan []domain.LearningPlanItem, feedback *domain.Feedback, notes *string) (*domain.LearningProcess, error) {
 	_, err := s.learningRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
@@ -65,6 +127,9 @@ func (s *LearningService) UpdateLearning(ctx context.Context, id string, topic s
 	if err := s.learningRepo.Update(ctx, id, learning); err != nil {
 		return nil, fmt.Errorf("failed to update learning: %w", err)
 	}
+
+	// Note: topic and description are in the request, they don't change
+	// They come from JOIN with training_requests table
 
 	// Reload to get updated data with JOINs
 	return s.learningRepo.GetByID(ctx, id)
