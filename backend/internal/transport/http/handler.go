@@ -40,6 +40,7 @@ func (h *Handler) InitRoutes(router *gin.Engine, logger *slog.Logger, jwtSecret 
 	router.Use(middleware.RecoveryMiddleware(logger))
 	router.Use(middleware.LoggerMiddleware(logger))
 	router.Use(middleware.PrometheusMiddleware())
+	router.Use(middleware.CORSMiddleware("https://frontend-g5fd.onrender.com"))
 
 	// Root level endpoints
 	router.GET("/health", func(c *gin.Context) {
