@@ -2,7 +2,7 @@ import axios from 'axios';
 import { User, TrainingRequest, LearningProcess, Mentor, LearningPlanItem } from './types';
 
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: 'https://backend-8xp7.onrender.com/api',
   headers: {
     'Content-Type': 'application/json',
   },
