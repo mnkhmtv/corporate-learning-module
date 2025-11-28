@@ -64,13 +64,13 @@ export const apiService = {
   },
 
   getMyRequests: async (): Promise<TrainingRequest[]> => {
-    const response = await api.get<TrainingRequest[]>('/requests/my');
-    return response.data;
+    const response = await api.get<{ requests: TrainingRequest[] }>('/requests/my');
+    return response.data.requests || [];
   },
 
   getAllRequests: async (): Promise<TrainingRequest[]> => {
-    const response = await api.get<TrainingRequest[]>('/requests');
-    return response.data;
+    const response = await api.get<{ requests: TrainingRequest[] }>('/requests');
+    return response.data.requests || [];
   },
 
   assignMentor: async (requestId: string, mentorId: string): Promise<LearningProcess> => {
@@ -80,8 +80,8 @@ export const apiService = {
 
   // Learning Processes
   getMyLearnings: async (): Promise<LearningProcess[]> => {
-    const response = await api.get<LearningProcess[]>('/learnings');
-    return response.data;
+    const response = await api.get<{ learnings: LearningProcess[] }>('/learnings');
+    return response.data.learnings || [];
   },
 
   getLearning: async (id: string): Promise<LearningProcess> => {

@@ -15,6 +15,8 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchUserData()
+
+    console.log(learnings)
   }, [fetchUserData])
 
   if (!user) return null
@@ -49,10 +51,10 @@ export default function DashboardPage() {
               <Card key={learning.id} className="hover:shadow-md transition-shadow">
                 <CardHeader className="pb-2">
                   <div className="flex justify-between items-start">
-                    <CardTitle className="text-xl">{learning.topic}</CardTitle>
+                    <CardTitle className="text-xl">{learning.request.topic}</CardTitle>
                     <Badge variant="default">В процессе</Badge>
                   </div>
-                  <CardDescription>Наставник: {learning?.mentorName}</CardDescription>
+                  <CardDescription>Наставник: {learning?.mentor.name}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="text-sm text-slate-500 mb-4">
@@ -60,7 +62,7 @@ export default function DashboardPage() {
                   </div>
                   <Button className="w-full" asChild>
                     <Link href={`/dashboard/learning/${learning.id}`}>
-                      Продолжить обучение
+                      Перейти к обучению
                     </Link>
                   </Button>
                 </CardContent>
@@ -87,7 +89,7 @@ export default function DashboardPage() {
         </h2>
         <div className="space-y-4">
           {(requests || []).map((request) => {
-            const learning = learnings?.find(l => l.requestId === request.id);
+            const learning = learnings?.find(l => l.request.id === request.id);
             const isCompleted = learning?.status === 'completed';
 
             return (
@@ -136,9 +138,9 @@ export default function DashboardPage() {
                <Card key={learning.id} className="bg-[#F2F3F7]">
                  <CardContent className="flex items-center justify-between p-4">
                    <div>
-                     <h3 className="font-medium text-slate-700">{learning.topic}</h3>
+                     <h3 className="font-medium text-slate-700">{learning.request.topic}</h3>
                      <p className="text-sm text-slate-500">
-                       Наставник: {learning?.mentorName}
+                       Наставник: {learning?.mentor.name}
                      </p>
                    </div>
                    <div className="flex items-center gap-2">

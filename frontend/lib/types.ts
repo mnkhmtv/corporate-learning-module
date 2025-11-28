@@ -25,13 +25,9 @@ export interface TrainingRequest {
 
 export interface LearningProcess {
   id: string;
-  requestId: string;
   userId: string;
-  mentorId: string;
-  mentorName: string;
-  mentorEmail: string;
-  mentorTg?: string;
-  topic: string;
+  mentor: Mentor;
+  request: TrainingRequest;
   status: LearningStatus;
   startDate: string;
   endDate?: string;

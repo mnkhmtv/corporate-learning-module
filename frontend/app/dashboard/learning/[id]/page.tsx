@@ -26,10 +26,12 @@ import Link from "next/link"
 export default function LearningPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
-  const { fetchLearning, updateLearningPlan, completeLearning } = useStore()
+  const { fetchLearning, updateLearningPlan, completeLearning, updateNotes } = useStore()
   const [learning, setLearning] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [newPlanItem, setNewPlanItem] = useState("")
+  const [notes, setNotes] = useState("")
+  const [isSavingNotes, setIsSavingNotes] = useState(false)
   
   // Feedback state
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false)
@@ -41,6 +43,7 @@ export default function LearningPage({ params }: { params: Promise<{ id: string 
       const data = await fetchLearning(id)
       if (data) {
         setLearning(data)
+        setNotes(data.notes || "")
       } else {
         router.push('/dashboard')
       }
@@ -78,6 +81,13 @@ export default function LearningPage({ params }: { params: Promise<{ id: string 
     setLearning({ ...learning, plan: updatedPlan })
   }
 
+  const handleSaveNotes = async () => {
+    setIsSavingNotes(true)
+    await updateNotes(id, notes)
+    setIsSavingNotes(false)
+    // Optionally show a toast or confirmation message
+  }
+
   const handleComplete = async () => {
     await completeLearning(id, { rating, comment })
     setIsFeedbackOpen(false)
@@ -99,7 +109,7 @@ export default function LearningPage({ params }: { params: Promise<{ id: string 
               {learning.status === 'active' ? 'В процессе' : 'Завершено'}
             </Badge>
             <span>•</span>
-            <span>Наставник: {learning?.mentorName}</span>
+            <span>Наставник: {learning?.mentor.name}</span>
           </div>
         </div>
       </div>
@@ -162,8 +172,17 @@ export default function LearningPage({ params }: { params: Promise<{ id: string 
               <Textarea 
                 placeholder="Заметки по ходу обучения..." 
                 className="min-h-[200px]"
-                defaultValue={learning.notes}
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
               />
+              <Button 
+                onClick={handleSaveNotes} 
+                disabled={isSavingNotes}
+                variant="secondary"
+                className="mt-4"
+              >
+                {isSavingNotes ? 'Сохранение...' : 'Сохранить'}
+              </Button>
             </CardContent>
           </Card>
         </div>
@@ -177,24 +196,20 @@ export default function LearningPage({ params }: { params: Promise<{ id: string 
             <CardContent className="space-y-4">
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-bold">
-                  {learning?.mentorName?.charAt(0)}
+                  {learning?.mentor.name.charAt(0)}
                 </div>
                 <div>
-                  <p className="font-medium">{learning.mentorName}</p>
+                  <p className="font-medium">{learning.mentor.name}</p>
                   <p className="text-xs text-slate-500">Ментор</p>
                 </div>
               </div>
               
               <div className="space-y-2 pt-2 border-t text-sm">
-                <div className="flex items-center gap-2 text-slate-600">
-                  <Mail className="h-4 w-4" />
-                  <a href={`mailto:${learning.mentorEmail}`} className="hover:underline">{learning.mentorEmail}</a>
-                </div>
-                {learning.mentorTg && (
+                {learning.mentor.telegram && (
                    <div className="flex items-center gap-2 text-slate-600">
                     <MessageCircle className="h-4 w-4" />
-                    <a href={`https://t.me/${learning.mentorTg.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                      {learning.mentorTg}
+                    <a href={`https://t.me/${learning.mentor.telegram.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                      {learning.mentor.telegram}
                     </a>
                   </div>
                 )}

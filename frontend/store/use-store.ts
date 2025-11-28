@@ -24,6 +24,7 @@ interface AppState {
   
   fetchLearning: (id: string) => Promise<LearningProcess | undefined>;
   updateLearningPlan: (id: string, plan: LearningPlanItem[]) => Promise<void>;
+  updateNotes: (id: string, notes: string) => Promise<void>;
   completeLearning: (id: string, feedback: { rating: number, comment: string }) => Promise<void>;
 }
 
@@ -155,6 +156,12 @@ export const useStore = create<AppState>((set, get) => ({
   updateLearningPlan: async (id, plan) => {
     await apiService.updatePlan(id, plan);
     // TODO: Update local state optimistically if needed.
+  },
+
+  updateNotes: async (id, notes) => {
+    await apiService.updateNotes(id, notes);
+    // Note: We don't need to update local state here as the component
+    // that calls this will manage its own state.
   },
 
   completeLearning: async (id, feedback) => {

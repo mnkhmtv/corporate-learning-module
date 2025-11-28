@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, User as UserIcon } from "lucide-react"
+import { ArrowLeft, User as UserIcon, MessageCircle } from "lucide-react"
 import Link from "next/link"
 import { format, parseISO } from "date-fns"
 import { ru } from "date-fns/locale"
@@ -76,6 +76,14 @@ export default function AdminRequestPage({ params }: { params: Promise<{ id: str
                 <div>
                   <p className="font-medium">{request.user?.name}</p>
                   <p className="text-xs text-slate-500">{request.user?.jobTitle}</p>
+                  {request.user?.telegram && (
+                    <div className="flex items-center gap-2 mt-1 text-sm text-slate-600">
+                      <MessageCircle className="h-4 w-4" />
+                      <a href={`https://t.me/${request.user.telegram.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                        {request.user.telegram}
+                      </a>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -105,11 +113,13 @@ export default function AdminRequestPage({ params }: { params: Promise<{ id: str
                   <SelectContent>
                     {(mentors || []).map((mentor) => (
                       <SelectItem key={mentor.id} value={mentor.id}>
-                        <div className="flex flex-col items-start py-1">
-                          <span className="font-medium">{mentor.name}</span>
-                          <span className="text-xs text-slate-500">
-                            {mentor.jobTitle} • Загрузка: {mentor.workload}/5
-                          </span>
+                        <div className="flex items-center">
+                          <div className="flex flex-col items-start">
+                            <span className="font-medium">{mentor.name}</span>
+                            <span className="text-xs text-slate-500">
+                              {mentor.jobTitle} • Загрузка: {mentor.workload}/5
+                            </span>
+                          </div>
                         </div>
                       </SelectItem>
                     ))}
