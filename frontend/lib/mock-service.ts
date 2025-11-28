@@ -58,6 +58,7 @@ let requests: TrainingRequest[] = [
   {
     id: 'r1',
     userId: '1',
+    user: MOCK_USERS[0],
     topic: 'Advanced React Patterns',
     description: 'Хочу углубить знания в оптимизации рендеринга и сложных хуках.',
     status: 'pending',
@@ -98,9 +99,13 @@ export const mockService = {
 
   createRequest: async (userId: string, data: Pick<TrainingRequest, 'topic' | 'description'>): Promise<TrainingRequest> => {
     await new Promise(resolve => setTimeout(resolve, DELAY));
+    const user = MOCK_USERS.find(u => u.id === userId);
+    if (!user) throw new Error('User not found');
+
     const newRequest: TrainingRequest = {
       id: Math.random().toString(36).substr(2, 9),
       userId,
+      user,
       ...data,
       status: 'pending',
       createdAt: new Date().toISOString(),
@@ -130,17 +135,12 @@ export const mockService = {
     // Create learning process
     const learning: LearningProcess = {
       id: Math.random().toString(36).substr(2, 9),
-      requestId: request.id,
       userId: request.userId,
-      mentorId: mentor.id,
-      mentorName: mentor.name,
-      mentorEmail: mentor.email,
-      mentorTg: mentor.telegram,
-      topic: request.topic,
+      mentor,
+      request,
       status: 'active',
       startDate: new Date().toISOString(),
       plan: [],
-      notes: ''
     };
     learnings.push(learning);
     return learning;
